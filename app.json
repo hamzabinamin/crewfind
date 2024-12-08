@@ -1,8 +1,9 @@
 {
   "expo": {
-    "name": "crew-field",
-    "slug": "crew-field",
+    "name": "crewfind",
+    "slug": "crewfind",
     "version": "1.0.0",
+    "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -13,6 +14,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
+      "bundleIdentifier": "com.fulltrade.crewfind",
       "supportsTablet": true
     },
     "android": {
@@ -27,7 +29,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
