@@ -1,9 +1,11 @@
 import { Dimensions, Alert, Modal, FlatList, TouchableOpacity, Text } from "react-native";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components/native";
-import GradientButtonWithArrow from "../../../src/utilities/GradientButtonWithArrow";
+import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { useRouter } from "expo-router";
+import { User } from "../../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { useRouter,  useLocalSearchParams } from "expo-router";
 
 // Static list of countries (simplified for the example)
 const countries = [
@@ -40,6 +42,33 @@ const Register = () => {
   const [base, setBase] = useState(""); // This field will now trigger the modal
   const [nationality, setNationality] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const params = useLocalSearchParams();
+  const cameFromSettings = params.cameFromSettings === "true";
+  console.log("Params", params);
+  console.log("cameFromSettings", cameFromSettings);
+
+  useEffect(() => {
+    console.log("Inside Register's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+        updateFieldsForEdit(storedUser);
+      }
+    };
+
+    fetchUserFromStorage();
+  }, []);
+
+  const updateFieldsForEdit = (user: User) => {
+    setName(user.name);
+    setSurname(user.surName);
+    setEmail(user.email);
+    setBase(user.base);
+    setNationality(user.nationality);
+  };
 
   const isEmailValid = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -89,25 +118,34 @@ const Register = () => {
         <Overlay />
       </ImageContainer>
       <HeadingText>
-        Create an <BlueText>Account!</BlueText>
+        {cameFromSettings ? "Profile " : "Create an  "}
+        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
       </HeadingText>
       <Form>
         <InputContainer>
           <StyledIconEmail name="user" size={20} color="#999999" />
-          <Input placeholder="Name" placeholderTextColor="#999999" keyboardType="default" onChangeText={setName} />
+          <Input placeholder="Name" placeholderTextColor="#999999" keyboardType="default" value={name} onChangeText={setName} />
         </InputContainer>
         <InputContainer>
           <StyledIconEmail name="user" size={20} color="#999" />
-          <Input placeholder="Surname" placeholderTextColor="#999999" keyboardType="default" onChangeText={setSurname} />
+          <Input placeholder="Surname" placeholderTextColor="#999999" keyboardType="default" value={surname} onChangeText={setSurname} />
         </InputContainer>
         <InputContainer>
           <StyledIconEmail name="envelope" size={20} color="#999999" />
-          <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" onChangeText={setEmail} />
+          <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} />
         </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="lock" size={20} color="#999999" />
-          <Input placeholder="Password" placeholderTextColor="#999999" keyboardType="default" secureTextEntry={true} onChangeText={setPassword} />
-        </InputContainer>
+        {!cameFromSettings && (
+          <InputContainer>
+            <StyledIconEmail name="lock" size={20} color="#999999" />
+            <Input 
+              placeholder="Password" 
+              placeholderTextColor="#999999" 
+              keyboardType="default" 
+              secureTextEntry={true} 
+              onChangeText={setPassword} 
+            />
+          </InputContainer>
+        )}
         <InputContainer>
           <StyledIconEmail name="map-marker" size={20} color="#999999" />
           <Input
@@ -122,7 +160,7 @@ const Register = () => {
         </InputContainer>
         <InputContainer>
           <StyledIconEmail name="flag" size={20} color="#999999" />
-          <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" onChangeText={setNationality} />
+          <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
         </InputContainer>
         <GradientButtonWithArrow title="Step 1 of 3" onPress={handleStep1Press} />
       </Form>

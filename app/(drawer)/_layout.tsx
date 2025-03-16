@@ -1,7 +1,10 @@
+import { useEffect, useState } from "react";
 import { View, Text, Image, StyleSheet, Alert } from "react-native";
 import { Drawer } from 'expo-router/drawer';
 import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
 import type { DrawerContentComponentProps } from "@react-navigation/drawer";
+import { User } from "../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
 import { auth } from '../../FirebaseConfig';
 import { getAuth } from 'firebase/auth';
 import { router } from "expo-router";
@@ -116,6 +119,20 @@ export default function DrawerLayout() {
 }
 
 function CustomDrawerContent(props: DrawerContentComponentProps) {
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+      }
+    };
+
+    fetchUserFromStorage();
+  }, []);
+
   const handleLogout = () => {
     Alert.alert(
       "Logout",
@@ -139,11 +156,11 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       <View style={styles.profileSection}>
         <Image
           source={{
-            uri: "https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg", // Replace with actual profile image URL
+            uri: user?.profileImageUrl || "https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg", // Replace with actual profile image URL
           }}
           style={styles.profileImage}
         />
-        <Text style={styles.profileName}>John Doe</Text>
+        <Text style={styles.profileName}>{user?.name || "User"}</Text>
       </View>
 
       {/* Separator */}

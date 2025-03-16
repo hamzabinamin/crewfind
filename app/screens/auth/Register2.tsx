@@ -2,9 +2,9 @@ import { Dimensions, Alert, Modal, TouchableOpacity, Text, View, Platform } from
 import React, { useState, useEffect } from "react";
 import styled from "styled-components/native";
 import * as ImagePicker from "expo-image-picker";
-import GradientButtonWithArrow from "@/src/utilities/GradientButtonWithArrow";
+import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { User } from "../../../src/models/User";
+import { User } from "../../models/User";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;

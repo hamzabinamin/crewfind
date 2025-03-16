@@ -1,52 +1,89 @@
-import React from "react";
-import { FlatList, Dimensions, Text, View, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal } from "react-native";
+import { useRouter } from "expo-router";
 import styled from "styled-components/native";
-// Import BackgroundGradient
+import GradientButton from '../../utilities/GradientButton';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const screenWidth = Dimensions.get("window").width;
-
-const specials = [
-  {
-    id: "1",
-    companyName: "Company 1",
-    dealExpiration: "Exp 11/2024",
-    image: "https://marketplace.canva.com/EAE0rNNM2Fg/1/0/1600w/canva-letter-c-trade-marketing-logo-design-template-r9VFYrbB35Y.jpg",
-  },
-  {
-    id: "2",
-    companyName: "Company 2",
-    dealExpiration: "Exp 11/2024",
-    image: "https://marketplace.canva.com/EAE0rNNM2Fg/1/0/1600w/canva-letter-c-trade-marketing-logo-design-template-r9VFYrbB35Y.jpg",
-  },
-  {
-    id: "3",
-    companyName: "Company 3",
-    dealExpiration: "Exp 11/2024",
-    image: "https://marketplace.canva.com/EAE0rNNM2Fg/1/0/1600w/canva-letter-c-trade-marketing-logo-design-template-r9VFYrbB35Y.jpg",
-  },
-];
+import { Ionicons } from "@expo/vector-icons";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { Special } from "../../models/Special";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { db } from "../../../FirebaseConfig";
+import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
 const Specials = () => {
-  const renderItem = ({ item }: { item: typeof specials[0] }) => (
-    <LinearGradient
+  const [specials, setSpecials] = useState<Special[]>([]);
+  const [selectedSpecial, setSelectedSpecial] = useState<Special | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+  
+  const openModal = (special: Special) => {
+    setSelectedSpecial(special);
+    setModalVisible(true);
+  };
+  
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
+  useEffect(() => {
+      const fetchJobs = async () => {
+        try {
+          setLoading(true);
+          const specialsSnapshot = await getDocs(collection(db, "Specials"));
+          const specialsData: Special[] = await Promise.all(
+            specialsSnapshot.docs.map(async (specialDoc) => {
+              const specialData = specialDoc.data();
+              console.log("Fetched Specials: ", specialData);
+              const companyImageUrl = specialData.companyImage ? await UtilFunctions.fetchLogoUrl(specialData.companyImage) : "https://via.placeholder.com/60";
+              const backgroundImageUrl = specialData.backgroundImage ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage) : "https://via.placeholder.com/60";
+    
+              return {
+                id: specialDoc.id,
+                companyName: specialData.companyName,
+                dealExpiration: specialData.dealExpiration,
+                companyImageUrl: companyImageUrl,
+                backgroundImageUrl: backgroundImageUrl,
+                createdAt: new Date(specialData.createdAt),
+                updatedAt: new Date(specialData.updatedAt),
+              };
+            })
+          );
+    
+          setSpecials(specialsData);
+        } catch (error) {
+          console.error("Error fetching specials:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      fetchJobs();
+    }, []);
+
+  const renderItem = ({ item }: { item: Special }) => (
+    <TouchableOpacity onPress={() => openModal(item)}>
+      <LinearGradient
       colors={['#4898D8', '#50AAD6', '#58BBCF']} // Gradient colors
       style={{ padding: 15, borderRadius: 10, marginBottom: 15, height: 200 }}
     >
-      <AirlineImageContainer>
-        <AirlineImage source={{ uri: item.image }} />
-      </AirlineImageContainer>
-      <LeftContainer>
-        <AirlineName>{item.companyName}</AirlineName>
-        <BottomLeftDetails>
-          <DetailText>{item.dealExpiration}</DetailText>
-        </BottomLeftDetails>
-      </LeftContainer>
-    </LinearGradient>
+        <AirlineImageContainer>
+          <AirlineImage source={{ uri: item.companyImageUrl }} />
+        </AirlineImageContainer>
+        <LeftContainer>
+          <AirlineName>{item.companyName}</AirlineName>
+          <BottomLeftDetails>
+            <DetailText>{item.dealExpiration}</DetailText>
+          </BottomLeftDetails>
+        </LeftContainer>
+      </LinearGradient>
+    </TouchableOpacity>
   );
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <HeadingText>Nearby Deals</HeadingText>
       <FlatList
         data={specials}
@@ -54,6 +91,44 @@ const Specials = () => {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+      <Modal animationType="slide" transparent visible={modalVisible}>
+        {selectedSpecial && (
+          <ModalOverlay>
+            <ModalContainer>
+            { /* <BackgroundOverlay /> */ }
+            <BackgroundImage source={{ uri: selectedSpecial.backgroundImageUrl || "https://via.placeholder.com/300" }} />
+              {/* Close Button */}
+              <CloseButton onPress={closeModal}>
+                <Ionicons name="close" size={24} color="black" />
+              </CloseButton>
+
+              {/* Job Details */}
+              <JobDetails>
+                <CompanyInfo>
+                  <View>
+                    <HeadingTextModal>{selectedSpecial.companyName}</HeadingTextModal>
+                  </View>
+                  <CompanyLogo source={{ uri: selectedSpecial.companyImageUrl }} />
+                </CompanyInfo>
+              </JobDetails>
+
+              {/* Divider */}
+              <Divider />
+
+              {/* Job Expiration */}
+              <ExpirationText>Deal Expiration: {selectedSpecial.dealExpiration}</ExpirationText>
+
+              {/* Action Buttons */}
+              <ButtonContainer>
+              <GradientButton title="Directions" onPress={closeModal} containerStyle={{ width: 120, height: 80 }} />
+                <ChatButton onPress={() => router.push("/Messages")}>
+                  <Ionicons name="call" size={34} color="white" />
+                </ChatButton>
+              </ButtonContainer>
+            </ModalContainer>
+          </ModalOverlay>
+        )}
+      </Modal>
     </Container>
   );
 };
@@ -118,4 +193,115 @@ const AirlineImage = styled.Image`
   height: 60px;
   border-radius: 30px;
   margin-bottom: 10px;
+`;
+
+const ModalOverlay = styled.View`
+  flex: 1;
+  background-color: rgba(0, 0, 0, 0.5); /* Optional: Adds dim effect */
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+`;
+
+const ModalContainer = styled.View`
+  width: 90%;
+  background-color: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  padding-bottom: 20px;
+`;
+
+const HeadingTextModal = styled.Text`
+  font-size: 24px;
+  font-weight: bold;
+  color: #5DCBCF;
+  margin-top: 25px;
+  margin-bottom: 20px;
+`;
+
+const BackgroundImage = styled.Image`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.3;
+  resize-mode: cover;
+`;
+
+const BackgroundOverlay = styled.View`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-color: red; /* Change this color to test */
+`;
+
+const CloseButton = styled.Pressable`
+  position: absolute;
+  top: 10px;
+  left: 10px;  /* Move to the top-left */
+  background-color: #fff;
+  border-radius: 15px;
+  padding: 5px;
+  elevation: 5;
+`;
+
+const DetailTextModal = styled.Text`
+  font-size: 14px;
+  color: #666;
+`;
+
+const JobDetails = styled.View`
+  padding: 16px;
+`;
+
+const CompanyInfo = styled.View`
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const CompanyLogo = styled.Image`
+  width: 50px;
+  height: 50px;
+  border-radius: 25px; 
+  resize-mode: contain;
+  margin-top: 15px;
+`;
+
+const Divider = styled.View`
+  height: 1px;
+  background-color: #A9A9A9;
+  margin-vertical: 10px;
+`;
+
+const ExpirationText = styled.Text`
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 10px;
+`;
+
+const ButtonContainer = styled.View`
+  flex-direction: row; /* Arrange buttons in a row */
+  justify-content: center; /* Center buttons horizontally */
+  align-items: center; /* Align buttons vertically */
+  align-self: center; /* Center the entire container */
+  gap: 15px; /* Add spacing between the buttons */
+  margin-top: 10px;
+`;
+
+const ChatButton = styled.TouchableOpacity`
+  background-color: #5dcbcf;
+  padding: 12px;
+  border-radius: 5px;
+  align-items: center;
+  justify-content: center;
 `;

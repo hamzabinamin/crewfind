@@ -1,9 +1,9 @@
 import { Dimensions, Alert, Modal, FlatList, TouchableOpacity, Text } from "react-native";
 import React, { useState } from "react";
 import styled from "styled-components/native";
-import GradientButtonWithArrow from "@/src/utilities/GradientButtonWithArrow";
+import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { User } from "../../../src/models/User";
+import { User } from "../../models/User";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;

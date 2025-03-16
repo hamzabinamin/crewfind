@@ -17,14 +17,17 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "^1.24.0",
+    "@react-native-firebase/firestore": "^21.12.0",
     "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/drawer": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/stack": "^7.0.0",
     "@types/styled-components": "^5.1.34",
+    "date-fns": "^4.1.0",
     "expo": "^52.0.11",
     "expo-constants": "~17.0.3",
     "expo-font": "~13.0.1",
+    "expo-image-picker": "~16.0.3",
     "expo-linear-gradient": "~14.0.1",
     "expo-linking": "~7.0.3",
     "expo-router": "~4.0.9",
@@ -46,8 +49,7 @@
     "react-native-screens": "~4.1.0",
     "react-native-vector-icons": "^10.2.0",
     "react-native-web": "~0.19.10",
-    "styled-components": "^6.1.13",
-    "expo-image-picker": "~16.0.3"
+    "styled-components": "^6.1.13"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

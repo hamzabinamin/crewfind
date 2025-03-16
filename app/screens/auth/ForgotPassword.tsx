@@ -1,7 +1,7 @@
 import { Dimensions } from "react-native";
 import React from "react";
 import styled from 'styled-components/native';
-import GradientButton from '../../../src/utilities/GradientButton';
+import GradientButton from '../../utilities/GradientButton';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
 const screenWidth = Dimensions.get('window').width;

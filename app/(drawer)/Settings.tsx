@@ -1,10 +1,18 @@
 import React from 'react';
 import styled from 'styled-components/native';
+import { useRouter } from "expo-router";
 
 const Settings = () => { 
+  const router = useRouter();
   return (
     <Container>
       {/* Settings List */}
+      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register", params: { cameFromSettings: "true" } })}>
+        <ListText>Profile Details</ListText>
+      </ListItem>
+      <ListItem>
+        <ListText>Experience</ListText>
+      </ListItem>
       <ListItem>
         <ListText>Deactivate Account</ListText>
       </ListItem>
@@ -16,7 +24,7 @@ const Settings = () => {
       <Separator />
 
       {/* Footer */}
-      <FooterText>© 2024 Fullard Apps</FooterText>
+      <FooterText>© 2025 Fullard Apps</FooterText>
     </Container>
   );
 }

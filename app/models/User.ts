@@ -13,9 +13,9 @@ export interface User {
     relationshipStatus: string,
     hobbies: string,
     profileImageUrl?: string;
-    profileBackgroundUrl?: string;
+    backgroundImageUrl?: string;
     profileImageObject?: string;
-    profileBackgroundObject?: string;
+    backgroundImageObject?: string;
     licenses: [string],
     licenseType: string,
     experiences: [string],
@@ -23,3 +23,5 @@ export interface User {
     createdAt: Date;
     updatedAt: Date;
   }
+
+  export default User;

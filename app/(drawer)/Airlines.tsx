@@ -1,32 +1,53 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, TouchableOpacity } from 'react-native';
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-
-// Sample data
-const airlines = [
-  {
-    id: '1',
-    name: 'Delta Airlines',
-    logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8S94XvDD8H424x0NgoIcsBRayY9LTIpgR4Q&s',
-  },
-  {
-    id: '2',
-    name: 'American Airlines',
-    logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8S94XvDD8H424x0NgoIcsBRayY9LTIpgR4Q&s',
-  },
-  {
-    id: '3',
-    name: 'United Airlines',
-    logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8S94XvDD8H424x0NgoIcsBRayY9LTIpgR4Q&s',
-  },
-];
+import LoadingIndicator from "../utilities/LoadingIndicator";
+import { Airline } from "../models/Airline";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { db } from "../../FirebaseConfig";
+import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
 const Airlines = () => {
+  const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchAirlines = async () => {
+      try {
+        setLoading(true);
+        const airlinesSnapshot = await getDocs(collection(db, "Airlines"));
+        const airlinesData: Airline[] = await Promise.all(
+          airlinesSnapshot.docs.map(async (airlineDoc) => {
+            const airlineData = airlineDoc.data();
+            console.log("Fetched Airlines: ", airlineData);
+  
+            const logoUrl = airlineData.logoImage ? await UtilFunctions.fetchLogoUrl(airlineData.logoImage) : "https://via.placeholder.com/60";
+  
+            return {
+              id: airlineDoc.id,
+              name: airlineData.name,
+              logoImageUrl: logoUrl,
+              createdAt: new Date(airlineData.createdAt),
+              updatedAt: new Date(airlineData.updatedAt),
+            };
+          })
+        );
+  
+        setAirlines(airlinesData);
+      } catch (error) {
+        console.error("Error fetching jobs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+      fetchAirlines();
+  }, []);
+
   // Render each airline row
-  const renderAirline = ({ item }: { item: typeof airlines[0] }) => (
+  const renderAirline = ({ item }: { item: Airline }) => (
     <AirlineRow>
-      <AirlineLogo source={{ uri: item.logo }} />
+      <AirlineLogo source={{ uri: item.logoImageUrl }} />
       <AirlineName>{item.name}</AirlineName>
       <ChatButton>
         <Icon name="chatbubble-outline" size={24} color="#555" />
@@ -36,6 +57,7 @@ const Airlines = () => {
 
   return (
     <Container>
+       {loading && <LoadingIndicator />}
       <Heading>Airlines List</Heading>
       <FlatList
         data={airlines}

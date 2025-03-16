@@ -1,36 +1,100 @@
-import { Dimensions } from "react-native";
+import { Dimensions, View } from "react-native";
 import React, { useState } from "react";
 import styled from 'styled-components/native';
-import GradientButton from '../../../src/utilities/GradientButton';
+import GradientButton from '../../utilities/GradientButton';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../../src/navigation/types';
-import { auth } from '../../../FirebaseConfig'
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { User } from "../../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { auth, db } from '../../../FirebaseConfig'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { doc, getDoc } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
 const screenWidth = Dimensions.get('window').width;
 
 const Login = () => {
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [errors, setErrors] = useState({ email: "", password: "" });
+    const [loading, setLoading] = useState(false);
+
+    const validateFields = () => {
+      const newErrors = { email: "", password: "" };
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+      if (!email.trim()) {
+        newErrors.email = "Email field cannot be empty.";
+      } else if (!emailRegex.test(email)) {
+        newErrors.email = "Please enter a valid email address.";
+      }
+  
+      if (!password.trim()) {
+        newErrors.password = "Password field cannot be empty.";
+      }
+  
+      setErrors(newErrors);
+      return Object.values(newErrors).every((error) => error === "");
+    };
   
     const handleLoginPress = async () => {
       console.log('Login 2 button pressed');
-      router.replace("../../(drawer)/(tabs)/Home");
-    /*  try {
+      if (!validateFields()) return;
+     // router.replace("../../(drawer)/(tabs)/Home");
+      try {
+        setLoading(true);
         const user = await signInWithEmailAndPassword(auth, email, password)
         if(user) {
-          router.replace("../../(drawer)/(tabs)/Home")
+          const userDocRef = doc(db, "Users", user.user.uid);
+          const userDoc = await getDoc(userDocRef);
+
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+
+            const profileImageUrl = userData.profileImage ? await UtilFunctions.fetchLogoUrl(userData.profileImage) : "https://via.placeholder.com/60";
+            const backgroundImageUrl = userData.backgroundImage ? await UtilFunctions.fetchLogoUrl(userData.backgroundImage) : "https://via.placeholder.com/60";
+           
+            const loggedInUser: User = {
+              id: user.user.uid,
+              name: userData.name || "",
+              surName: userData.surName || "",
+              email: userData.email || "",
+              password: "", 
+              base: userData.base || "",
+              nationality: userData.nationality || "",
+              position: userData.position || "",
+              companyName: userData.companyName || "",
+              age: userData.age || 0,
+              sex: userData.sex || "",
+              relationshipStatus: userData.relationshipStatus || "",
+              hobbies: userData.hobbies || "",
+              profileImageUrl: profileImageUrl || "",
+              backgroundImageUrl: backgroundImageUrl || "",
+              licenses: userData.licenses || [],
+              licenseType: userData.licenseType || "",
+              experiences: userData.experiences || [],
+              flyingHours: userData.flyingHours || 0,
+              createdAt: userData.createdAt && userData.createdAt.toDate ? userData.createdAt.toDate() : new Date(),
+              updatedAt: userData.updatedAt && userData.updatedAt.toDate ? userData.updatedAt.toDate() : new Date()
+            };
+
+            UtilFunctions.saveUser(loggedInUser);
+            router.replace("../../(drawer)/(tabs)/Home")
+          }
+          else {
+            console.log("No user data found!");
+            alert("User details not found in the database.");
+          }
         } 
       } 
       catch (error: any) {
         console.log(error)
         alert('Sign in failed: ' + error.message);
-      } */
+      } 
+      finally {
+        setLoading(false); 
+      }
     };
 
     const handleRegisterPress = () => {
@@ -43,6 +107,7 @@ const Login = () => {
 
     return (
         <Container>
+            {loading && <LoadingIndicator />}
             <ImageContainer>
                 <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
                 <Overlay />
@@ -51,14 +116,22 @@ const Login = () => {
               Welcome<BlueText> Back!</BlueText>
             </HeadingText>
             <Form>
-                <InputContainer>
-                    <StyledIconEmail name="envelope" size={20} color="#999999" />
-                    <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" />
-                </InputContainer>
-                <InputContainer>
-                    <StyledIconPassword name="lock" size={20} color="#999999" />
-                    <Input placeholder="Password" placeholderTextColor="#999999" secureTextEntry />
-                </InputContainer>
+                <View>
+                  <InputContainer>
+                      <StyledIconEmail name="envelope" size={20} color="#999999" />
+                      <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={(text) => setEmail(text)} />
+                  </InputContainer>
+                  {errors.email ? <ErrorText>{errors.email}</ErrorText> : null}
+                </View>
+                
+                <View>
+                  <InputContainer>
+                      <StyledIconPassword name="lock" size={20} color="#999999" />
+                      <Input placeholder="Password" placeholderTextColor="#999999" secureTextEntry value={password} onChangeText={(text) => setPassword(text)} />
+                  </InputContainer>
+                  {errors.password ? <ErrorText>{errors.password}</ErrorText> : null}
+                </View>
+
                 <GradientButton title="LOG IN" onPress={handleLoginPress} />
                 <ForgotPasswordText onPress={handleForgotPasswordPress}>Forgot Password?</ForgotPasswordText>
                 <RegisterLink>
@@ -152,6 +225,13 @@ const Input = styled.TextInput`
   font-size: 16px;
   color: #999999; /* Change text color to white */
   background-color: #FFFFFF; /* Make background transparent to see the container */
+`;
+
+const ErrorText = styled.Text`
+  color: red;
+  fontSize: 12;
+  marginBottom: 10;
+  marginLeft: 5;
 `;
 
 const ForgotPasswordText = styled.Text`

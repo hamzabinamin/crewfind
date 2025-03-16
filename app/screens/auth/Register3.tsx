@@ -1,9 +1,9 @@
 import { View, Dimensions, Modal, FlatList, Alert, ActivityIndicator, TouchableOpacity, ScrollView } from "react-native";
 import React, { useState } from "react";
 import styled from 'styled-components/native';
-import GradientButton from "@/src/utilities/GradientButton";
+import GradientButton from "../../utilities/GradientButton";
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { User } from "../../../src/models/User";
+import { User } from "../../models/User";
 import { auth } from '../../../FirebaseConfig'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
