@@ -2,9 +2,11 @@ import { Dimensions, Alert, Modal, TouchableOpacity, Text, View, Platform } from
 import React, { useState, useEffect } from "react";
 import styled from "styled-components/native";
 import * as ImagePicker from "expo-image-picker";
+import GradientButton from "../../utilities/GradientButton";
 import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { User } from "../../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 const screenWidth = Dimensions.get("window").width;
@@ -28,6 +30,22 @@ const Register2 = () => {
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [imageType, setImageType] = useState<"profile" | "background" | null>(null);
+  const cameFromSettings = params.cameFromSettings === "true";
+  console.log("Params Register2", params);
+  console.log("cameFromSettings", cameFromSettings);
+
+  useEffect(() => {
+    console.log("Inside Register's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+        updateFieldsForEdit(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
 
   // Request camera and gallery permissions
   useEffect(() => {
@@ -40,6 +58,11 @@ const Register2 = () => {
     };
     requestPermissions();
   }, []);
+
+  const updateFieldsForEdit = (user: User) => {
+    setProfileImage(user.profileImageUrl ? { uri: user.profileImageUrl } : null);
+    setBackgroundImage(user.backgroundImageUrl ? { uri: user.backgroundImageUrl } : null);
+  };
 
   const pickImage = async (type: "camera" | "gallery") => {
     let result;
@@ -101,7 +124,15 @@ const Register2 = () => {
         <Overlay />
       </ImageContainer>
       <HeadingText>
+      {cameFromSettings ? (
+        <>
+         Profile <BlueText>Management</BlueText>
+      </>
+      ) : (
+        <>
         Create an <BlueText>Account!</BlueText>
+      </>
+      )}
       </HeadingText>
       <Form>
         {/* Profile Image Upload */}
@@ -130,7 +161,8 @@ const Register2 = () => {
           </TouchableOpacity>
         </InputContainer>
 
-        <GradientButtonWithArrow title="Step 3 of 3" onPress={handleStep3Press} />
+        {cameFromSettings ? ( <GradientButton title="Save" onPress={handleStep3Press} /> ) : (
+          <GradientButtonWithArrow title="Step 3 of 3" onPress={handleStep3Press} /> )}
       </Form>
 
       {/* Modal for Camera or Gallery Selection */}

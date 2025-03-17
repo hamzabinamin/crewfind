@@ -58,7 +58,6 @@ const Register = () => {
         updateFieldsForEdit(storedUser);
       }
     };
-
     fetchUserFromStorage();
   }, []);
 
@@ -76,7 +75,7 @@ const Register = () => {
   };
 
   const handleStep1Press = async () => {
-    if (!name || !surname || !email || !password || !base || !nationality) {
+    if (!name || !surname || !email || (!password && !cameFromSettings) || !base || !nationality) {
       Alert.alert("Validation Error", "All fields are required!");
       return;
     }
@@ -86,24 +85,36 @@ const Register = () => {
       return;
     }
 
-    if (password.length < 8) {
+    if (password.length < 8 && !cameFromSettings) {
       Alert.alert("Validation Error", "Password must be at least 8 characters long!");
       return;
     }
 
-    const user = {
+    if(user) {
+      user.name = name;
+      user.surName = surname;
+      user.email = email;
+      user.password = password;
+      user.base = base;
+      user.nationality = nationality;  
+
+      router.push({
+        pathname: cameFromSettings ? "./Register2" : "./Register1",
+        params: { 
+          user: JSON.stringify(user),  
+          ...(cameFromSettings && { cameFromSettings: "true" }) 
+        } 
+      });
+    }
+  
+   /* const user = {
       name,
       surName: surname,
       email,
       password,
       base,
       nationality,
-    };
-
-    router.push({
-      pathname: "./Register1",
-      params: { user: JSON.stringify(user) },
-    });
+    }; */
   };
 
   const handleCountrySelect = (country: string) => {
@@ -162,7 +173,7 @@ const Register = () => {
           <StyledIconEmail name="flag" size={20} color="#999999" />
           <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
         </InputContainer>
-        <GradientButtonWithArrow title="Step 1 of 3" onPress={handleStep1Press} />
+        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"}  onPress={handleStep1Press} />
       </Form>
 
       {/* Country Selection Modal */}
