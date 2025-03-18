@@ -3,9 +3,12 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components/native";
 import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
+import { useRouter,  useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import { useRouter,  useLocalSearchParams } from "expo-router";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../../FirebaseConfig";
 
 // Static list of countries (simplified for the example)
 const countries = [
@@ -34,7 +37,6 @@ const countries = [
 const screenWidth = Dimensions.get("window").width;
 
 const Register = () => {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [surname, setSurname] = useState("");
   const [email, setEmail] = useState("");
@@ -43,6 +45,8 @@ const Register = () => {
   const [nationality, setNationality] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const params = useLocalSearchParams();
   const cameFromSettings = params.cameFromSettings === "true";
   console.log("Params", params);
@@ -96,15 +100,45 @@ const Register = () => {
       user.email = email;
       user.password = password;
       user.base = base;
-      user.nationality = nationality;  
+      user.nationality = nationality; 
+      
+      if(cameFromSettings) {
+        try {
+          setLoading(true);
+          const userRef = doc(db, "Users", user.id); // Adjust the collection name as needed
+          await updateDoc(userRef, {
+            name,
+            surName: surname,
+            email,
+            base,
+            nationality,
+          });
 
-      router.push({
-        pathname: cameFromSettings ? "./Register2" : "./Register1",
-        params: { 
-          user: JSON.stringify(user),  
-          ...(cameFromSettings && { cameFromSettings: "true" }) 
-        } 
-      });
+          router.push({
+            pathname: "./Register2",
+            params: { 
+              user: JSON.stringify(user),  
+              ...(cameFromSettings && { cameFromSettings: "true" }) 
+            } 
+          });
+  
+        } catch (error) {
+          console.error("Error updating profile:", error);
+          Alert.alert("Error", "Failed to update profile. Please try again.");
+          return;
+        }
+        finally {
+          setLoading(false);
+        }
+      }
+      else {
+        router.push({
+          pathname: "./Register1",
+          params: { 
+            user: JSON.stringify(user)
+          } 
+        });
+      }
     }
   
    /* const user = {
@@ -124,6 +158,7 @@ const Register = () => {
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <ImageContainer>
         <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
         <Overlay />
@@ -143,7 +178,7 @@ const Register = () => {
         </InputContainer>
         <InputContainer>
           <StyledIconEmail name="envelope" size={20} color="#999999" />
-          <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} />
+          <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cameFromSettings} />
         </InputContainer>
         {!cameFromSettings && (
           <InputContainer>

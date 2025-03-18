@@ -5,9 +5,13 @@ import * as ImagePicker from "expo-image-picker";
 import GradientButton from "../../utilities/GradientButton";
 import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../../../FirebaseConfig";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -24,10 +28,13 @@ const Register2 = () => {
   const params = useLocalSearchParams();
   const userString = typeof params.user === "string" ? params.user : null;
   const [user, setUser] = useState<User>(userString ? JSON.parse(userString) : {});
+  const [loading, setLoading] = useState(false);
   console.log("Received User: ", user);
 
   const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
+  const [profileImageChanged, setProfileImageChanged] = useState(false);
+  const [backgroundImageChanged, setBackgroundImageChanged] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [imageType, setImageType] = useState<"profile" | "background" | null>(null);
   const cameFromSettings = params.cameFromSettings === "true";
@@ -86,9 +93,11 @@ const Register2 = () => {
 
       if(imageType === "profile") {
         setProfileImage(selectedImage);
+        setProfileImageChanged(true);
         setUser((prevUser: User) => ({ ...prevUser, profileImage: selectedImage })); // Update user object with profile image
       } else if(imageType === "background") {
         setBackgroundImage(selectedImage);
+        setBackgroundImageChanged(true);
         setUser((prevUser: User) => ({ ...prevUser, backgroundImage: selectedImage })); // Update user object with background image
       }
     } else {
@@ -99,10 +108,75 @@ const Register2 = () => {
     setShowModal(false);
   };
 
-  const handleStep3Press = () => {
+  const handleStep3Press = async () => {
     if (!profileImage || !backgroundImage) {
       Alert.alert("Validation Error", "Both images are required.");
       return;
+    }
+
+    if(cameFromSettings) {
+      try {
+        setLoading(true);
+        const userRef = doc(db, "Users", user.id);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const oldProfileUrl = userData.profileImage;
+          const oldBackgroundUrl = userData.backgroundImage;
+
+          // Function to delete old image from Firebase Storage
+          const deleteOldImage = async (imageUrl: string) => {
+            if (imageUrl) {
+              const imageRef = ref(storage, imageUrl);
+              try {
+                await deleteObject(imageRef);
+                console.log(`Deleted old image: ${imageUrl}`);
+              } catch (error) {
+                console.error("Error deleting old image:", error);
+              }
+            }
+          };
+
+          // Function to upload a new image and get the URL
+          const uploadNewImage = async (imageUri: string, imageType: "profileImage" | "backgroundImage") => {
+            const timestamp = Date.now();
+            const response = await fetch(imageUri);
+            const blob = await response.blob();
+            const path = `Users/${imageType === "profileImage" ? "profileImages" : "backgroundImages"}`;
+            const fileName = `${timestamp}-${user.id}-${imageType}.jpg`;
+            const imageRef = ref(storage, `${path}/${fileName}`);
+            await uploadBytes(imageRef, blob);
+            return await getDownloadURL(imageRef);
+          };
+
+          const updatedData: Partial<User> = {};
+
+          // Delete and upload only if the image has changed
+          if (profileImageChanged) {
+            await deleteOldImage(oldProfileUrl);
+            updatedData.profileImageUrl = await uploadNewImage(profileImage.uri, "profileImage");
+          }
+
+          if (backgroundImageChanged) {
+            await deleteOldImage(oldBackgroundUrl);
+            updatedData.backgroundImageUrl = await uploadNewImage(backgroundImage.uri, "backgroundImage");
+          }
+
+          // Update Firestore with new image URLs
+          if (Object.keys(updatedData).length > 0) {
+            await updateDoc(userRef, updatedData);
+            Alert.alert("Success", "Images updated successfully!");
+          }
+        }
+      } catch (error) {
+        console.error("Error updating profile images:", error);
+        Alert.alert("Error", "Failed to update profile images. Please try again.");
+        return;
+      }
+      finally {
+        setLoading(false);
+      }
     }
 
     // Navigate to Register3 with the updated user object
@@ -119,6 +193,7 @@ const Register2 = () => {
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <ImageContainer>
         <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
         <Overlay />

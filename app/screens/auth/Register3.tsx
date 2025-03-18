@@ -89,7 +89,7 @@ const Register3 = () => {
       }
       updatedUser.id = createdUser.uid 
 
-      const userRef = doc(firestore, "users", updatedUser.id);
+      const userRef = doc(firestore, "Users", updatedUser.id);
       await setDoc(userRef, updatedUser);
       
       const userDoc = await getDoc(userRef); // Use getDoc to retrieve the document
