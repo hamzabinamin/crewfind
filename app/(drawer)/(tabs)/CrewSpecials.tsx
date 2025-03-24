@@ -28,7 +28,7 @@ const Specials = () => {
   };
 
   useEffect(() => {
-      const fetchJobs = async () => {
+      const fetchSpecials = async () => {
         try {
           setLoading(true);
           const specialsSnapshot = await getDocs(collection(db, "Specials"));
@@ -59,8 +59,8 @@ const Specials = () => {
         }
       };
     
-      fetchJobs();
-    }, []);
+      fetchSpecials();
+  }, []);
 
   const renderItem = ({ item }: { item: Special }) => (
     <TouchableOpacity onPress={() => openModal(item)}>

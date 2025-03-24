@@ -10,7 +10,7 @@ const Settings = () => {
       <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register", params: { cameFromSettings: "true" } })}>
         <ListText>Profile Details</ListText>
       </ListItem>
-      <ListItem>
+      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register1", params: { cameFromSettings: "true" } })}>
         <ListText>Experience</ListText>
       </ListItem>
       <ListItem>

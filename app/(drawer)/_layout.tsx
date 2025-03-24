@@ -37,32 +37,6 @@ export default function DrawerLayout() {
         }}
       />
       <Drawer.Screen
-        name="Profile"
-        options={{
-          drawerLabel: "Profile",
-          title: "Profile",
-          headerTitleStyle: {
-            color: "#5DCBCF",
-          },
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
-          ) 
-        }}
-      />
-      <Drawer.Screen
-        name="Experience"
-        options={{
-          drawerLabel: "Experience",
-          title: "Experience",
-          headerTitleStyle: {
-            color: "#5DCBCF",
-          },
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
-          ) 
-        }}
-      />
-      <Drawer.Screen
         name="Airlines"
         options={{
           drawerLabel: "Airlines",

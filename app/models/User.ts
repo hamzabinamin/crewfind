@@ -11,7 +11,7 @@ export interface User {
     age: number,
     sex: string,
     relationshipStatus: string,
-    hobbies: string,
+    hobbies: string[],
     profileImageUrl?: string;
     backgroundImageUrl?: string;
     profileImageObject?: string;

@@ -1,10 +1,14 @@
 import { Dimensions, Alert, Modal, FlatList, TouchableOpacity, Text } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components/native";
 import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { User } from "../../models/User";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { User } from "../../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from "../../../FirebaseConfig";
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -13,6 +17,7 @@ const Register1 = () => {
   const params = useLocalSearchParams();
   const userString = typeof params.user === "string" ? params.user : null;
   const [user, setUser] = useState<Partial<User>>(userString ? JSON.parse(userString) : {});
+  const [loading, setLoading] = useState(false);
   console.log("Received User: ", user);
 
   const [position, setPosition] = useState("");
@@ -34,8 +39,38 @@ const Register1 = () => {
 
   const sexOptions = ["Male", "Female"];
   const relationshipOptions = ["Single", "Married", "Unspecified"];
+  const cameFromSettings = params.cameFromSettings === "true";
+  console.log("Params Register1", params);
+  console.log("cameFromSettings", cameFromSettings);
 
-  const handleStep2Press = () => {
+  useEffect(() => {
+    console.log("Inside Register's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+        updateFieldsForEdit(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
+
+  const updateFieldsForEdit = (user: User) => {
+    setPosition(user.position);
+    setCompanyName(user.companyName);
+    setAge(user.age.toString());
+    setSex(user.sex);
+    setRelationshipStatus(user.relationshipStatus);
+    console.log("Hobbies here: ", user.hobbies);
+    console.log("I/B");
+    console.log("After format: ", user.hobbies.join(", "));
+    if(user?.hobbies) {
+      setHobbies(user.hobbies.join(", ")); // Ensure consistent format
+    }
+  };
+
+  const handleStep2Press = async () => {
     if (!position || !companyName || !age || !sex || !relationshipStatus || !hobbies) {
       Alert.alert("Validation Error", "All fields are required.");
       return;
@@ -69,32 +104,65 @@ const Register1 = () => {
       return;
     }
 
-    // Update user object
-    const updatedUser = {
-      ...user,
-      position: position,
-      companyName: companyName,
-      age: parsedAge,
-      sex: sanitizedSex,
-      relationshipStatus: relationshipStatus,
-      hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim()), // Convert to array of trimmed hobbies
-    };
+    if(user) {
+      user.position = position;
+      user.companyName = companyName;
+      user.age = parsedAge;
+      user.sex = sanitizedSex;
+      user.relationshipStatus = relationshipStatus;
+      user.hobbies = sanitizedHobbies ? sanitizedHobbies.split(",").map((hobby) => hobby.trim()) : [];
 
-    // Navigate to Register2
-    router.push({
-      pathname: "./Register2",
-      params: { user: JSON.stringify(updatedUser) },
-    });
+      if(cameFromSettings) {
+        try {
+          setLoading(true);
+          if (user?.id) {
+            const userRef = doc(db, "Users", user.id);
+            await updateDoc(userRef, {
+              position,
+              companyName,
+              age: parsedAge,
+              sex: sanitizedSex,
+              relationshipStatus,
+              hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim()),
+            });
+            
+            router.push({
+              pathname: "./Register3",
+              params: { 
+                user: JSON.stringify(user),  
+                ...(cameFromSettings && { cameFromSettings: "true" }) 
+              } 
+            });
+          }
+        } catch (error) {
+          console.error("Error updating profile:", error);
+          Alert.alert("Error", "Failed to update profile. Please try again.");
+          return;
+        }
+        finally {
+          setLoading(false);
+        }
+      }
+      else {
+        // Navigate to Register2
+        router.push({
+          pathname: "./Register2",
+          params: { user: JSON.stringify(user) },
+        });
+      }
+    }
   };
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <ImageContainer>
         <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
         <Overlay />
       </ImageContainer>
       <HeadingText>
-        Create an <BlueText>Account!</BlueText>
+      {cameFromSettings ? "Experience " : "Create an  "}
+      <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
       </HeadingText>
       <Form>
         <InputContainer>
@@ -117,6 +185,7 @@ const Register1 = () => {
             placeholderTextColor="#999999"
             keyboardType="default"
             onChangeText={setCompanyName}
+            value={companyName}
           />
         </InputContainer>
         <InputContainer>
@@ -126,6 +195,7 @@ const Register1 = () => {
             placeholderTextColor="#999999"
             keyboardType="numeric"
             onChangeText={setAge}
+            value={age}
           />
         </InputContainer>
         <InputContainer>
@@ -159,9 +229,10 @@ const Register1 = () => {
             placeholderTextColor="#999999"
             keyboardType="default"
             onChangeText={setHobbies}
+            value={hobbies}
           />
         </InputContainer>
-        <GradientButtonWithArrow title="Step 2 of 3" onPress={handleStep2Press} />
+        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 2 of 3"} onPress={handleStep2Press} />
       </Form>
 
       {/* Position Modal */}

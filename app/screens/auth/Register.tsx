@@ -208,7 +208,7 @@ const Register = () => {
           <StyledIconEmail name="flag" size={20} color="#999999" />
           <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
         </InputContainer>
-        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"}  onPress={handleStep1Press} />
+        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"} onPress={handleStep1Press} />
       </Form>
 
       {/* Country Selection Modal */}

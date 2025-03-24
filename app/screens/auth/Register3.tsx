@@ -1,14 +1,16 @@
 import { View, Dimensions, Modal, FlatList, Alert, ActivityIndicator, TouchableOpacity, ScrollView } from "react-native";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from 'styled-components/native';
 import GradientButton from "../../utilities/GradientButton";
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { User } from "../../models/User";
-import { auth } from '../../../FirebaseConfig'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { getFirestore, setDoc, doc, getDoc } from "firebase/firestore";
 import { getStorage, ref, uploadBytesResumable } from "firebase/storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { User } from "../../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { getFirestore, setDoc, doc, getDoc, updateDoc } from "firebase/firestore";
+import { auth, db } from '../../../FirebaseConfig'
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -17,6 +19,9 @@ const Register3 = () => {
   const params = useLocalSearchParams();
   const userString = typeof params.user === "string" ? params.user : null;
   const [user, setUser] = useState<User>(userString ? JSON.parse(userString) : {});
+  const cameFromSettings = params.cameFromSettings === "true";
+  console.log("Params Register3", params);
+  console.log("cameFromSettings", cameFromSettings);
   console.log("Received User: ", user);
 
   const [licenses, setLicenses] = useState<string[]>([]); // License input field
@@ -45,6 +50,26 @@ const Register3 = () => {
     "Corporate Jets < 20 Tons", "Corporate Jets > 20 Tons", "Military Jets"
   ];
 
+  useEffect(() => {
+    console.log("Inside Register's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+        updateFieldsForEdit(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
+
+  const updateFieldsForEdit = (user: User) => {
+    setLicenses(user.licenses);
+    setLicenseType(user.licenseType);
+    setExperiences(user.experiences);
+    setFlyingHours(user.flyingHours ? String(user.flyingHours) : "");
+  };
+  
   const handleStep2Press = async () => {
     // Validation
     if(licenses.length === 0) {
@@ -69,42 +94,63 @@ const Register3 = () => {
 
     const parsedFlyingHours = typeof flyingHours === "string" ? parseInt(flyingHours) : flyingHours;
 
-    const updatedUser = {
-      ...user,
-      licenses: licenses,
-      licenseType: licenseType,
-      experiences: experiences,
-      flyingHours: parsedFlyingHours, // Ensure flyingHours is a number
-    };
-
-    console.log("User before saving: ", updatedUser);
-
-    try {
-      setLoading(true);
-      const userCredential = await createUserWithEmailAndPassword(auth, updatedUser.email, updatedUser.password);
-      const createdUser = userCredential.user;
-
-      if(!createdUser) {
-        throw new Error("Failed to create user in Firebase Authentication.");
+    if(user) {
+      const updatedUser = {
+        ...user,
+        licenses: licenses,
+        licenseType: licenseType,
+        experiences: experiences,
+        flyingHours: parsedFlyingHours, // Ensure flyingHours is a number
+      };
+      console.log("User before saving: ", updatedUser);
+      if(cameFromSettings) {
+        try {
+          setLoading(true);
+          if (user?.id) {
+            const userRef = doc(db, "Users", user.id);
+            await updateDoc(userRef, {
+              licenses,
+              licenseType,
+              experiences,
+              flyingHours: parsedFlyingHours
+            });
+          }
+        } catch (error) {
+          console.error("Error updating profile:", error);
+          Alert.alert("Error", "Failed to update profile. Please try again.");
+          return;
+        }
+        finally {
+          setLoading(false);
+        } 
       }
-      updatedUser.id = createdUser.uid 
-
-      const userRef = doc(firestore, "Users", updatedUser.id);
-      await setDoc(userRef, updatedUser);
-      
-      const userDoc = await getDoc(userRef); // Use getDoc to retrieve the document
-      if (!userDoc.exists()) {
-        throw new Error("Failed to save user data in Firestore.");
-      } 
+      else {
+        try {
+          setLoading(true);
+          const userCredential = await createUserWithEmailAndPassword(auth, updatedUser.email, updatedUser.password);
+          const createdUser = userCredential.user;
+    
+          if(!createdUser) {
+            throw new Error("Failed to create user in Firebase Authentication.");
+          }
+          updatedUser.id = createdUser.uid 
+    
+          const userRef = doc(firestore, "Users", updatedUser.id);
+          await setDoc(userRef, updatedUser);
+          
+          const userDoc = await getDoc(userRef); // Use getDoc to retrieve the document
+          if (!userDoc.exists()) {
+            throw new Error("Failed to save user data in Firestore.");
+          } 
+        }
+        catch (error: any) {
+          console.error("Error creating user:", error.message);
+          Alert.alert("Error", error.message || "Failed to create user");
+        } finally {
+          setLoading(false); // Hide loading indicator
+        }
+      }
     }
-    catch (error: any) {
-      console.error("Error creating user:", error.message);
-      Alert.alert("Error", error.message || "Failed to create user");
-    } finally {
-      setLoading(false); // Hide loading indicator
-    }
-    // Proceed with next steps after validation
-    // router.push("./Login");
   };
 
   const handleLicenseSelect = (license: string) => {
@@ -144,12 +190,14 @@ const Register3 = () => {
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <ImageContainer>
         <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
         <Overlay />
       </ImageContainer>
       <HeadingText>
-        Create an <BlueText>Account!</BlueText>
+        {cameFromSettings ? "Experience " : "Create an  "}
+        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
       </HeadingText>
       <ScrollView style={{ flex: 1, width: '100%', marginTop: 140 }} contentContainerStyle={{ alignItems: 'center' }}>
         <Form>
@@ -231,7 +279,7 @@ const Register3 = () => {
           </InputContainer>
 
           {/* Register Button */}
-          <GradientButton title="Register" onPress={handleStep2Press} />
+          <GradientButton title={cameFromSettings ? "Save" : "Register"} onPress={handleStep2Press} />
         </Form>
       </ScrollView>
 

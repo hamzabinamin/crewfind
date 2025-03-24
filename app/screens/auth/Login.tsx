@@ -68,7 +68,7 @@ const Login = () => {
               age: userData.age || 0,
               sex: userData.sex || "",
               relationshipStatus: userData.relationshipStatus || "",
-              hobbies: userData.hobbies || "",
+              hobbies: userData.hobbies || [],
               profileImageUrl: profileImageUrl || "",
               backgroundImageUrl: backgroundImageUrl || "",
               licenses: userData.licenses || [],
