@@ -16,9 +16,11 @@ export interface User {
     backgroundImageUrl?: string;
     profileImageObject?: string;
     backgroundImageObject?: string;
-    licenses: [string],
+    licenses: string[],
     licenseType: string,
-    experiences: [string],
+    experiences: string[],
+    friends: string[],
+    blocked: string[],
     flyingHours: number,
     createdAt: Date;
     updatedAt: Date;

@@ -125,7 +125,9 @@ const Register1 = () => {
               relationshipStatus,
               hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim()),
             });
-            
+
+            UtilFunctions.saveUser(user as User);
+
             router.push({
               pathname: "./Register3",
               params: { 

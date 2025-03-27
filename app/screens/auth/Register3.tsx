@@ -114,6 +114,7 @@ const Register3 = () => {
               experiences,
               flyingHours: parsedFlyingHours
             });
+            UtilFunctions.saveUser(updatedUser);
           }
         } catch (error) {
           console.error("Error updating profile:", error);

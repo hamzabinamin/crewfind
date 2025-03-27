@@ -1,14 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FlatList, Alert } from 'react-native';
 import styled from 'styled-components/native';
+import { User } from "../models/User";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../utilities/LoadingIndicator";
+import { collection, doc, getDocs, getDoc } from "firebase/firestore";
+import { db } from "../../FirebaseConfig";
 
 const Friends = () => {
-  // Example data
+  const [friends, setFriends] = useState<User[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const [blockedUsers, setUsers] = useState([
     { id: '1', name: 'John Doe', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
     { id: '2', name: 'Jane Smith', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
     { id: '3', name: 'Bob Johnson', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
   ]);
+
+  useEffect(() => {
+    console.log("Inside Home's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      try {
+        setLoading(true);
+        if (user) {
+          const userRef = doc(db, "Users", user.id);
+          const userSnap = await getDoc(userRef);
+    
+          if (!userSnap.exists()) {
+            console.error("User document not found!");
+            return;
+          }
+    
+          const userData = userSnap.data();
+          console.log("Fetched User: ", userData);
+    
+          let friendsDetails: User[] = [];
+    
+          if (userData.friends && Array.isArray(userData.friends)) {
+            const fetchedFriends = await Promise.all(
+              userData.friends.map(async (friendId: string) => {
+                const friendRef = doc(db, "Users", friendId);
+                const friendSnap = await getDoc(friendRef);
+    
+                if (friendSnap.exists()) {
+                  const friendData = friendSnap.data();
+                  return {
+                    id: friendSnap.id,
+                    name: friendData.name || "",
+                    surName: friendData.surName || "",
+                    email: friendData.email || "",
+                    base: friendData.base || "",
+                    nationality: friendData.nationality || "",
+                    position: friendData.position || "",
+                    companyName: friendData.companyName || "",
+                    age: friendData.age || 0,
+                    sex: friendData.sex || "",
+                    relationshipStatus: friendData.relationshipStatus || "",
+                    hobbies: friendData.hobbies || [],
+                    profileImageUrl: friendData.profileImage
+                      ? await UtilFunctions.fetchLogoUrl(friendData.profileImage)
+                      : "https://via.placeholder.com/60",
+                    backgroundImageUrl: friendData.backgroundImage
+                      ? await UtilFunctions.fetchLogoUrl(friendData.backgroundImage)
+                      : "https://via.placeholder.com/60",
+                    licenses: friendData.licenses || [],
+                    licenseType: friendData.licenseType || "",
+                    experiences: friendData.experiences || [],
+                    flyingHours: friendData.flyingHours || 0,
+                    friends: friendData.friends || [],
+                    createdAt: friendData.createdAt ? new Date(friendData.createdAt) : new Date(),
+                    updatedAt: friendData.updatedAt ? new Date(friendData.updatedAt) : new Date(),
+                  } as User;
+                }
+                return null;
+              })
+            );
+    
+            // Remove `null` values by filtering them out
+            friendsDetails = fetchedFriends.filter((friend): friend is User => friend !== null);
+          }
+          setFriends(friendsDetails);
+        }
+      } catch (error) {
+        console.error("Error fetching friends:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    if (user?.id) {
+      fetchFriends();
+    }
+  }, [user]); // Runs when `user` changes
+  
 
   // Toggle status
   const toggleStatus = (id: string) => {
@@ -36,24 +132,26 @@ const Friends = () => {
   };
 
   // Render each user row
-  const renderUser = ({ item }: { item: typeof blockedUsers[0] }) => (
-    <UserRow>
-      <UserImage source={{ uri: item.image }} />
-      <UserName>{item.name}</UserName>
-      <BlockButton
-        onPress={() => showConfirmationDialog(item.id, item.isBlocked)}
-        isBlocked={item.isBlocked}
-      >
-        <ButtonText>{item.isBlocked ? 'UnFriended' : 'Friends'}</ButtonText>
-      </BlockButton>
-    </UserRow>
-  );
+  const renderUser = ({ item }: { item: User }) => {
+    const isBlocked = blockedUsers.some((blockedUser) => blockedUser.id === item.id); // Assume blockedUsers is a state or list
+  
+    return (
+      <UserRow>
+        <UserImage source={{ uri: item.profileImageUrl }} />
+        <UserName>{item.name} {item.surName}</UserName>
+        <BlockButton onPress={() => showConfirmationDialog(item.id, isBlocked)} isBlocked={isBlocked}>
+          <ButtonText>{isBlocked ? "UnFriended" : "Friends"}</ButtonText>
+        </BlockButton>
+      </UserRow>
+    );
+  };
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <Heading>Friends List</Heading>
       <FlatList
-        data={blockedUsers}
+        data={friends}
         renderItem={renderUser}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}

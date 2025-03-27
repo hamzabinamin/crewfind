@@ -1,13 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal } from "react-native";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
+import { Menu, Provider as PaperProvider, Portal} from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { collection, doc, getDocs } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
 const screenWidth = Dimensions.get("window").width;
@@ -15,13 +16,26 @@ const screenWidth = Dimensions.get("window").width;
 const Home = () => {
   const [crew, setCrew] = useState<User[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const menuButtonRef = useRef<View>(null); // ✅ Explicitly type the ref
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const router = useRouter();
  
   const openModal = (crew: User) => {
     setSelectedCrew(crew);
+    if (user && user.friends) {
+      setIsFriend(user.friends.includes(crew.id));
+    }
+    if (user && user.blocked) {
+      setIsBlocked(user.blocked.includes(crew.id));
+    }
+    console.log("Is Friend: ", isFriend);
+    console.log("Is Blocked: ", isBlocked);
     setModalVisible(true);
   };
     
@@ -29,9 +43,109 @@ const Home = () => {
     setModalVisible(false);
   };
 
-  const toggleFriend = () => {
-    setIsFriend((prev) => !prev);
-    // Here you can add API call to update friend status in Firestore
+  const openMenu = () => {
+    if (menuButtonRef.current) {
+      menuButtonRef.current.measure((x, y, width, height, pageX, pageY) => {
+        setMenuPosition({ top: pageY + height, left: pageX });
+        console.log("Menu is visible now at", pageX, pageY);
+        setMenuVisible(true);
+      });
+    } else {
+      console.log("Got in else - menuButtonRef is null");
+    }
+  };
+
+  const closeMenu = () => setMenuVisible(false);
+
+  const toggleFriend = async (user: User, crewMemberId: string) => {
+    console.log("Got inside toggleFriend");
+    try {
+      setLoading(true);
+      const userRef = doc(db, "Users", user.id);
+      const userSnap = await getDoc(userRef);
+  
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        let friendsList = userData.friends || []; // Ensure friends exist
+  
+        if (friendsList.includes(crewMemberId)) {
+          // Remove friend
+          friendsList = friendsList.filter((id: string) => id !== crewMemberId);
+          await updateDoc(userRef, {
+            friends: arrayRemove(crewMemberId),
+          });
+          setIsFriend(false);
+        } else {
+          // Add friend
+          friendsList.push(crewMemberId);
+          await updateDoc(userRef, {
+            friends: arrayUnion(crewMemberId),
+          });
+          setIsFriend(true);
+        }
+        const updatedUser = { ...user, friends: friendsList };
+        setUser(updatedUser); 
+        UtilFunctions.saveUser(updatedUser);
+      }
+    } catch (error) {
+      console.error("Error updating friends list:", error);
+    }
+    finally {
+      setLoading(false);
+    } 
+  };
+
+  const blockUser = async (user: User, crewMemberId: string) => {
+    console.log("Got inside blockUser");
+    try {
+      setLoading(true);
+      const userRef = doc(db, "Users", user.id);
+      const userSnap = await getDoc(userRef);
+  
+      if (userSnap.exists()) {
+        const userData = userSnap.data();
+        let blockedList = userData.blocked || []; // Ensure blocked list exists
+        let friendsList = userData.friends || []; // Ensure friends list exists
+  
+        if (blockedList.includes(crewMemberId)) {
+          // Unblock user
+          blockedList = blockedList.filter((id: string) => id !== crewMemberId);
+          await updateDoc(userRef, {
+            blocked: arrayRemove(crewMemberId),
+          });
+          setIsBlocked(false);
+        } else {
+          // Block user
+          blockedList.push(crewMemberId);
+          await updateDoc(userRef, {
+            blocked: arrayUnion(crewMemberId),
+          });
+          setIsBlocked(true);
+  
+          // Remove from friends list if they were friends
+          if (friendsList.includes(crewMemberId)) {
+            friendsList = friendsList.filter((id: string) => id !== crewMemberId);
+            await updateDoc(userRef, {
+              friends: arrayRemove(crewMemberId),
+            });
+          }
+        }
+  
+        // Update local state and storage
+        const updatedUser = { 
+          ...user, 
+          blocked: blockedList,
+          friends: friendsList,  // 🔥 Ensure local friends list is updated
+        };
+  
+        setUser(updatedUser);
+        UtilFunctions.saveUser(updatedUser);
+      }
+    } catch (error) {
+      console.error("Error updating blocked list:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const navigateToChat = () => {    
@@ -39,6 +153,18 @@ const Home = () => {
       pathname: "/Messages"
     });
   };
+
+  useEffect(() => {
+    console.log("Inside Home's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
   
   useEffect(() => {
     const fetchCrew = async () => {
@@ -72,6 +198,8 @@ const Home = () => {
               licenseType: crewData.licenseType,
               experiences: crewData.experiences,
               flyingHours: crewData.flyingHours,
+              friends: crewData.friends,
+              blocked: crewData.blocked,
               createdAt: new Date(crewData.createdAt),
               updatedAt: new Date(crewData.updatedAt),
             };
@@ -114,60 +242,93 @@ const Home = () => {
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <HeadingTextModal>Nearby Crew</HeadingTextModal>
       <FlatList
-        data={crew}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+      data={crew}
+      renderItem={renderItem}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={{ paddingBottom: 20 }}
+    />
+    {/* Menu moved outside of the Modal */}
     <Modal animationType="slide" transparent visible={modalVisible}>
-      {selectedCrew && (
-        <ModalOverlay>
-          <ModalContainer>
-            <BackgroundImage source={{ uri: selectedCrew.backgroundImageUrl || "https://via.placeholder.com/300" }} />
-            
-            {/* Close Button */}
-            <CloseButton onPress={closeModal}>
-              <Ionicons name="close" size={24} color="black" />
-            </CloseButton>
-            
-            {/* Profile Info */}
-            <ProfileHeader>
-              <View>
-                <HeadingText>{selectedCrew.name} {selectedCrew.surName}</HeadingText>
-                <SubText>Base: {selectedCrew.base}</SubText>
-                <SubText>Last Seen: {"2 hours ago"}</SubText>
-              </View>
-              <ProfileImage source={{ uri: selectedCrew.profileImageUrl }} />
-            </ProfileHeader>
-            
-            {/* Divider */}
-            <Divider />
-            
-            {/* Crew Details */}
-            <DetailsContainer>
-              <DetailTextModal>Airline: {selectedCrew.companyName}</DetailTextModal>
-              <DetailTextModal>Nationality: {selectedCrew.nationality}</DetailTextModal>
-              <DetailTextModal>Hobbies: {selectedCrew.hobbies?.join(", ") || "N/A"}</DetailTextModal>
-              <DetailTextModal>Relationship Status: {selectedCrew.relationshipStatus}</DetailTextModal>
-              <DetailTextModal>Sex: {selectedCrew.sex}</DetailTextModal>
-              <DetailTextModal>Age: {selectedCrew.age}</DetailTextModal>
-            </DetailsContainer>
-            
-            {/* Action Buttons */}
-            <ButtonContainer>
-              <ActionButton onPress={toggleFriend}>
-                <Ionicons name={isFriend ? "person-remove" : "person-add"} size={34} color="white" />
-              </ActionButton>
-              <ActionButton onPress={navigateToChat}>
-                <Ionicons name="mail" size={34} color="white" />
-              </ActionButton>
-            </ButtonContainer>
-          </ModalContainer>
-        </ModalOverlay>
-      )}
-    </Modal>
+        {selectedCrew && user && (
+          <ModalOverlay>
+            {loading && <LoadingIndicator />}
+            <ModalContainer>
+              <BackgroundImage source={{ uri: selectedCrew.backgroundImageUrl || "https://via.placeholder.com/300" }} />
+              
+              <ModalPaddingDiv>
+                {/* Close Button */}
+                <CloseButton onPress={closeModal}>
+                  <Ionicons name="close" size={24} color="black" />
+                </CloseButton>
+              
+                {/* Profile Info */}
+                <ProfileHeader>
+                  <View>
+                    <HeadingText>{selectedCrew.name} {selectedCrew.surName}</HeadingText>
+                    <SubText>Base: {selectedCrew.base}</SubText>
+                    <SubText>Last Seen: {"2 hours ago"}</SubText>
+                  </View>
+                  <ProfileImage source={{ uri: selectedCrew.profileImageUrl }} />
+                </ProfileHeader>
+              
+                {/* Divider */}
+                <Divider />
+              
+                {/* Crew Details */}
+                <DetailsContainer>
+                  <DetailTextModal>Airline: {selectedCrew.companyName}</DetailTextModal>
+                  <DetailTextModal>Nationality: {selectedCrew.nationality}</DetailTextModal>
+                  <DetailTextModal>Hobbies: {selectedCrew.hobbies?.join(", ") || "N/A"}</DetailTextModal>
+                  <DetailTextModal>Relationship Status: {selectedCrew.relationshipStatus}</DetailTextModal>
+                  <DetailTextModal>Sex: {selectedCrew.sex}</DetailTextModal>
+                  <DetailTextModal>Age: {selectedCrew.age}</DetailTextModal>
+                </DetailsContainer>
+              
+                {/* Action Buttons */}
+                <ButtonContainer>
+                  <View ref={menuButtonRef}>
+                    <TouchableOpacity onPress={openMenu}>
+                      <Ionicons name="ellipsis-vertical" size={34} />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={navigateToChat} disabled={isBlocked}>
+                    <Ionicons name="mail" size={34} color={isBlocked ? "gray" : "black"} />
+                  </TouchableOpacity>
+                </ButtonContainer>
+
+                {/* Menu Dropdown */}
+                {menuVisible && (
+                  <Modal animationType="fade" transparent visible={menuVisible} onRequestClose={closeMenu}>
+                    <TouchableOpacity style={{ flex: 1 }} onPress={closeMenu} />
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: menuPosition.top,
+                        left: menuPosition.left,
+                        backgroundColor: "white",
+                        borderRadius: 5,
+                        padding: 10,
+                        elevation: 5,
+                      }}
+                    >
+                      <TouchableOpacity onPress={() => { console.log("Add Friend"); toggleFriend(user, selectedCrew.id); }}>
+                        <Text style={{ padding: 10 }}>{isFriend ? "Unfriend" : "Add Friend"}</Text>
+                      </TouchableOpacity>
+                      <View style={{ height: 1, backgroundColor: "gray" }} />
+                      <TouchableOpacity onPress={() => { console.log("Block User"); blockUser(user, selectedCrew.id); }}>
+                        <Text style={{ padding: 10 }}>{isBlocked ? "Unblock" : "Block"}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </Modal>
+                )}
+              </ModalPaddingDiv>
+            </ModalContainer>
+          </ModalOverlay>
+        )}
+      </Modal>
     </Container>
   );
 };
@@ -246,12 +407,16 @@ const ModalOverlay = styled.View`
   background-color: rgba(0, 0, 0, 0.5);
 `;
 
+const ModalPaddingDiv = styled.View`
+  padding: 20px;
+`;
+
 const ModalContainer = styled.View`
   width: 90%;
   background-color: white;
   border-radius: 10px;
   overflow: hidden;
-  padding: 20px;
+  padding: 0px;
   align-items: center;
 `;
 
