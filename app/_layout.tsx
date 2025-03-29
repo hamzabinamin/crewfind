@@ -68,6 +68,24 @@ export default function _layout() {
           ),
         }}
       />
+      <Stack.Screen
+        name="screens/MessageDetail"
+        options={{
+          headerTitle: "Messages",
+          headerTitleStyle: {
+            color: "#5DCBCF",
+          },
+          headerTransparent: true,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
+              <Icon name="chevron-left" size={20} color="#5DCBCF" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
     </Stack>
+
+    
+    
   );
 }

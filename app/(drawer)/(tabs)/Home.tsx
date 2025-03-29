@@ -148,9 +148,11 @@ const Home = () => {
     }
   };
 
-  const navigateToChat = () => {    
+  const navigateToChat = (recipientId: string) => {    
+    closeModal();
     router.push({
-      pathname: "/Messages"
+      pathname: "../../screens/MessageDetail",
+      params: { recipientId }
     });
   };
 
@@ -294,7 +296,7 @@ const Home = () => {
                       <Ionicons name="ellipsis-vertical" size={34} />
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={navigateToChat} disabled={isBlocked}>
+                  <TouchableOpacity onPress={() => navigateToChat(selectedCrew.id)} disabled={isBlocked}>
                     <Ionicons name="mail" size={34} color={isBlocked ? "gray" : "black"} />
                   </TouchableOpacity>
                 </ButtonContainer>

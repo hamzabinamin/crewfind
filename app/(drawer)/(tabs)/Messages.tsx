@@ -1,46 +1,144 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, TextInputProps } from 'react-native';
 import styled from 'styled-components/native';
+import { useRouter } from 'expo-router';
+import { User } from "../../models/User";
+import { Airline } from "../../models/Airline";
+import { Chat } from "../../models/Chat";
+import { ChatParticipant } from "../../models/Chat";
+import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { collection, query, getDocs, getDoc, doc, onSnapshot, where } from 'firebase/firestore';
+import { db } from "../../../FirebaseConfig"; // Ensure you have Firebase setup
 
 const Messages = () => {
+  const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [loading, setLoading] = useState(false);
   // Example data for the chat list
-  const chatList = [
-    {
-      id: '1',
-      name: 'John Doe',
-      message: 'Hey, how are you?',
-      image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s',
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      message: 'Let’s catch up tomorrow!',
-      image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s',
-    },
-    {
-      id: '3',
-      name: 'Bob Johnson',
-      message: 'Got the documents you sent.',
-      image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s',
-    },
-  ];
 
+  useEffect(() => {
+    console.log("Inside Home's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+        fetchChats(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
+
+  const fetchChats = async (user: User) => {
+    console.log("Inside fetchChats");
+    if (!user) return;
+  
+    try {
+      setLoading(true);
+      console.log("Querying Chats");
+  
+      // 🔍 Query Firestore for chats where the user is a participant
+      const q = query(collection(db, "Chats"), where("participants", "array-contains", user.id));
+      const chatSnapshot = await getDocs(q);
+  
+      if (chatSnapshot.empty) {
+        console.log("No chats found.");
+        setChats([]);
+        return;
+      }
+  
+      // Process all chat documents in parallel
+      const chats = await Promise.all(
+        chatSnapshot.docs.map(async (docSnap) => {
+          const chatData = docSnap.data() as Chat;
+  
+          const participantsArray: string[] = Array.isArray(chatData.participants) 
+            ? chatData.participants.map(String)  // Ensure all values are strings
+            : [];
+  
+          // 🔍 Fetch all participants in parallel to optimize Firestore queries
+          const participantsWithDetails: ChatParticipant[] = (
+            await Promise.all(
+              participantsArray.map(async (participantId) => {
+                console.log("Fetching participant details for ID:", participantId);
+  
+                const userRef = doc(db, "Users", participantId);
+                const userDoc = await getDoc(userRef);
+  
+                if (userDoc.exists()) {
+                  const userData = userDoc.data();
+                  return {
+                    id: participantId,
+                    name: `${userData.name || ""} ${userData.surName || ""}`.trim(),
+                    imageUrl: userData.profileImage
+                      ? await UtilFunctions.fetchLogoUrl(userData.profileImage)
+                      : "https://via.placeholder.com/60",
+                    type: "User",
+                  };
+                }
+  
+                const airlineRef = doc(db, "Airlines", participantId);
+                const airlineDoc = await getDoc(airlineRef);
+  
+                if (airlineDoc.exists()) {
+                  const airlineData = airlineDoc.data();
+                  return {
+                    id: participantId,
+                    name: airlineData.name || "",
+                    imageUrl: airlineData.logoImage
+                      ? await UtilFunctions.fetchLogoUrl(airlineData.logoImage)
+                      : "https://via.placeholder.com/60",
+                    type: "Airline",
+                  };
+                }
+  
+                return null; // If no user/airline found
+              })
+            )
+          ).filter((p): p is ChatParticipant => p !== null);
+  
+          return { ...chatData, id: docSnap.id, participants: participantsWithDetails };
+        })
+      );
+  
+      console.log("Fetched Chats:", chats);
+  
+      // ✅ **Set state after fetching**
+      setChats(chats);
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Render each chat row
-  const renderChatItem = ({ item }: { item: typeof chatList[0] }) => (
-    <ChatItem>
-      <ChatImage source={{ uri: item.image }} />
-      <ChatDetails>
-        <ChatName>{item.name}</ChatName>
-        <ChatMessage>{item.message}</ChatMessage>
-      </ChatDetails>
-    </ChatItem>
-  );
+  const renderChatItem = ({ item }: { item: Chat }) => {
+    // Find the other participant (exclude the logged-in user)
+    if (!user) return null; // Ensure user is defined before proceeding
+    // Find the other participant (exclude the logged-in user)
+    const otherParticipant = item.participants.find((p) => p.id !== user.id);
+    if (!otherParticipant) return null; // Ensure we never return undefined
+
+    return (
+      <ChatItem>
+        <ChatImage source={{ uri: otherParticipant.imageUrl }} />
+        <ChatDetails>
+          <ChatName>{otherParticipant.name}</ChatName>
+          <ChatMessage>{item.lastMessage}</ChatMessage>
+        </ChatDetails>
+      </ChatItem>
+    );
+  };
 
   return (
     <Container>
+      {loading && <LoadingIndicator />}
       <SearchBar placeholder="Search" placeholderTextColor="#aaa" />
       <FlatList
-        data={chatList}
+        data={chats}
         renderItem={renderChatItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}

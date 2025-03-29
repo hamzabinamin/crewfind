@@ -4,20 +4,13 @@ import styled from 'styled-components/native';
 import { User } from "../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../utilities/LoadingIndicator";
-import { collection, doc, getDocs, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 
 const Blocked = () => {
   const [blocked, setBlocked] = useState<User[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Example data for blocked users
-  const [blockedUsers, setBlockedUsers] = useState([
-    { id: '1', name: 'John Doe', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
-    { id: '2', name: 'Jane Smith', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
-    { id: '3', name: 'Bob Johnson', image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX8uvIm9k-h9Weo6XPPRRPTifgMEV4khlQoA&s', isBlocked: true },
-  ]);
 
   useEffect(() => {
     console.log("Inside Home's useEffect");
@@ -108,28 +101,64 @@ const Blocked = () => {
   
 
   // Toggle block/unblock status
-  const toggleBlockStatus = (id: string) => {
-    setBlockedUsers((prevUsers) =>
-      prevUsers.map((user) =>
-        user.id === id ? { ...user, isBlocked: !user.isBlocked } : user
-      )
-    );
+  const toggleBlockStatus = async (user: User, id: string) => {
+    if (user) {
+      try {
+        setLoading(true);
+    
+        const userRef = doc(db, "Users", user.id);
+        const userSnap = await getDoc(userRef);
+    
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          let blockedList = userData.blocked || []; // Ensure the blocked array exists
+    
+          if (blockedList.includes(id)) {
+            // Unblock user
+            blockedList = blockedList.filter((blockedId: string) => blockedId !== id);
+            await updateDoc(userRef, {
+              blocked: arrayRemove(id),
+            });
+          } else {
+            // Block user
+            blockedList.push(id);
+            await updateDoc(userRef, {
+              blocked: arrayUnion(id),
+            });
+          }
+    
+          // Update local user object
+          const updatedUser = { ...user, blocked: blockedList };
+          setUser(updatedUser);
+          UtilFunctions.saveUser(updatedUser);
+    
+          // Update blocked list in UI
+          setBlocked(blockedList.map((blockedId: string) => ({ id: blockedId }))); // Assuming `blocked` is an array of objects
+        }
+      } catch (error) {
+        console.error("Error updating block status:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
   // Show confirmation dialog
   const showConfirmationDialog = (id: string, isBlocked: boolean) => {
-    const action = isBlocked ? 'unblock' : 'block';
-    Alert.alert(
-      `Are you sure?`,
-      `Are you sure you want to ${action} this person?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes',
-          onPress: () => toggleBlockStatus(id),
-        },
-      ]
-    );
+    if (user) {
+      const action = isBlocked ? 'unblock' : 'block';
+      Alert.alert(
+        `Are you sure?`,
+        `Are you sure you want to ${action} this person?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Yes',
+            onPress: () => toggleBlockStatus(user, id),
+          },
+        ]
+      );
+    }
   };
 
   // Render each blocked user row
