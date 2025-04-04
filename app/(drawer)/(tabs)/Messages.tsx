@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, TextInputProps } from 'react-native';
+import { FlatList, TextInputProps, TouchableOpacity, Alert } from 'react-native';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import styled from 'styled-components/native';
 import { useRouter } from 'expo-router';
 import { User } from "../../models/User";
@@ -8,7 +9,7 @@ import { Chat } from "../../models/Chat";
 import { ChatParticipant } from "../../models/Chat";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { collection, query, getDocs, getDoc, doc, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, getDocs, getDoc, deleteDoc, doc, onSnapshot, where } from 'firebase/firestore';
 import { db } from "../../../FirebaseConfig"; // Ensure you have Firebase setup
 
 const Messages = () => {
@@ -113,6 +114,38 @@ const Messages = () => {
       setLoading(false);
     }
   };
+
+  const confirmChatDelete = (chatId: string) => {
+    Alert.alert(
+      "Delete Chat",
+      "Are you sure you want to delete this chat?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleChatDelete(chatId)
+        }
+      ]
+    );
+  };
+  
+  const handleChatDelete = async (chatId: string) => {
+    try {
+      // 🧹 You can either remove the chat from Firestore or from local state here
+   //   await deleteDoc(doc(db, "Chats", chatId));
+      setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+    } catch (err) {
+      console.error("Error deleting chat:", err);
+    }
+  };
+
+  const navigateToChat = (chatId: string) => {    
+    router.push({
+      pathname: "../../screens/MessageDetail",
+      params: { chatId }
+    });
+  };
   
   // Render each chat row
   const renderChatItem = ({ item }: { item: Chat }) => {
@@ -123,24 +156,37 @@ const Messages = () => {
     if (!otherParticipant) return null; // Ensure we never return undefined
 
     return (
-      <ChatItem>
-        <ChatImage source={{ uri: otherParticipant.imageUrl }} />
-        <ChatDetails>
-          <ChatName>{otherParticipant.name}</ChatName>
-          <ChatMessage>{item.lastMessage}</ChatMessage>
-        </ChatDetails>
-      </ChatItem>
+      <TouchableOpacity onPress={() => navigateToChat(item.id)}>
+        <ChatItem>
+          <ChatImage source={{ uri: otherParticipant.imageUrl }} />
+          <ChatDetails>
+            <ChatName>{otherParticipant.name}</ChatName>
+            <ChatMessage>{item.lastMessage}</ChatMessage>
+          </ChatDetails>
+        </ChatItem>
+      </TouchableOpacity>
     );
   };
+
+  const renderHiddenItem = ({ item }: { item: Chat }) => (
+    <HiddenContainer>
+      <DeleteButton onPress={() => confirmChatDelete(item.id)}>
+        <DeleteText>Delete</DeleteText>
+      </DeleteButton>
+    </HiddenContainer>
+  );
 
   return (
     <Container>
       {loading && <LoadingIndicator />}
       <SearchBar placeholder="Search" placeholderTextColor="#aaa" />
-      <FlatList
+      <SwipeListView
         data={chats}
         renderItem={renderChatItem}
+        renderHiddenItem={renderHiddenItem}
         keyExtractor={(item) => item.id}
+        rightOpenValue={-95}
+        disableRightSwipe
         contentContainerStyle={{ paddingBottom: 20 }}
       />
     </Container>
@@ -204,4 +250,28 @@ const ChatMessage = styled.Text`
   font-size: 14px;
   color: #666;
   margin-top: 2px;
+`;
+
+const HiddenContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: flex-end;
+  padding-right: 20px;
+  background-color: #f5f5f5;
+  margin-bottom: 10px;
+  border-radius: 10px;
+`;
+
+const DeleteButton = styled.TouchableOpacity`
+  background-color: #ff3b30;
+  width: 75px;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+  border-radius: 10px;
+`;
+
+const DeleteText = styled.Text`
+  color: white;
+  font-weight: bold;
 `;

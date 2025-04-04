@@ -8,7 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
+import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
 const screenWidth = Dimensions.get("window").width;
@@ -16,6 +16,7 @@ const screenWidth = Dimensions.get("window").width;
 const Home = () => {
   const [crew, setCrew] = useState<User[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<User | null>(null);
+  const [chatIds, setChatIds] = useState<{ [key: string]: string | null }>({});
   const [user, setUser] = useState<User | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
@@ -148,11 +149,11 @@ const Home = () => {
     }
   };
 
-  const navigateToChat = (recipientId: string) => {    
+  const navigateToChat = (recipientId: string, chatId: string) => {    
     closeModal();
     router.push({
       pathname: "../../screens/MessageDetail",
-      params: { recipientId }
+      params: { recipientId, chatId }
     });
   };
 
@@ -169,17 +170,42 @@ const Home = () => {
   }, []);
   
   useEffect(() => {
+    if (!user) return;
     const fetchCrew = async () => {
       try {
         setLoading(true);
+        const chatIdsStore: { [key: string]: string | null } = {};
         const crewSnapshot = await getDocs(collection(db, "Users"));
+        const filteredCrewDocs = crewSnapshot.docs.filter((crewDoc) => crewDoc.id !== user.id);
         const crewData: User[] = await Promise.all(
-          crewSnapshot.docs.map(async (crewDoc) => {
+          filteredCrewDocs.map(async (crewDoc) => {
             const crewData = crewDoc.data();
             console.log("Fetched Crew: ", crewData);
             const profileImageUrl = crewData.profileImage ? await UtilFunctions.fetchLogoUrl(crewData.profileImage) : "https://via.placeholder.com/60";
             const backgroundImageUrl = crewData.backgroundImage ? await UtilFunctions.fetchLogoUrl(crewData.backgroundImage) : "https://via.placeholder.com/60";
   
+            const crewId = crewDoc.id;
+
+            if (user) {
+              const chatQuery = query(
+                collection(db, "Chats"),
+                where("participants", "array-contains", user.id) // User must be in participants
+              );
+
+              const chatSnapshot = await getDocs(chatQuery);
+              chatIdsStore[crewId] = null; // Default to null
+    
+              for (const chatDoc of chatSnapshot.docs) {
+                const chatData = chatDoc.data();
+                if (Array.isArray(chatData.participants) && chatData.participants.includes(crewId)) {
+                  chatIdsStore[crewId] = chatDoc.id; // Store chat ID if found
+                  console.log("chatIdsStore: ", chatIdsStore);
+                  break; // Stop searching once a chat is found
+                }
+              }
+              setChatIds(chatIdsStore);
+            }
+            
             return {
               id: crewDoc.id,
               name: crewData.name,
@@ -208,6 +234,7 @@ const Home = () => {
           })
         );
         setCrew(crewData);
+        console.log("Chat Ids: ", chatIds);
       } catch (error) {
         console.error("Error fetching crew:", error);
       } finally {
@@ -216,7 +243,7 @@ const Home = () => {
     };
   
     fetchCrew();
-  }, []);
+  }, [user]);
 
   const renderItem = ({ item }: { item: User }) => (
      <TouchableOpacity onPress={() => openModal(item)}>
@@ -245,7 +272,7 @@ const Home = () => {
   return (
     <Container>
       {loading && <LoadingIndicator />}
-      <HeadingTextModal>Nearby Crew</HeadingTextModal>
+      <HeadingText>Nearby Crew</HeadingText>
       <FlatList
       data={crew}
       renderItem={renderItem}
@@ -269,7 +296,7 @@ const Home = () => {
                 {/* Profile Info */}
                 <ProfileHeader>
                   <View>
-                    <HeadingText>{selectedCrew.name} {selectedCrew.surName}</HeadingText>
+                    <HeadingTextModal>{selectedCrew.name} {selectedCrew.surName}</HeadingTextModal>
                     <SubText>Base: {selectedCrew.base}</SubText>
                     <SubText>Last Seen: {"2 hours ago"}</SubText>
                   </View>
@@ -296,7 +323,7 @@ const Home = () => {
                       <Ionicons name="ellipsis-vertical" size={34} />
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => navigateToChat(selectedCrew.id)} disabled={isBlocked}>
+                  <TouchableOpacity onPress={() => navigateToChat(selectedCrew.id, chatIds[selectedCrew.id] ?? "")} disabled={isBlocked}>
                     <Ionicons name="mail" size={34} color={isBlocked ? "gray" : "black"} />
                   </TouchableOpacity>
                 </ButtonContainer>

@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { JobPost } from "../../models/JobPost";
 import { Airline } from "../../models/Airline";
+import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import { getAuth } from "firebase/auth";
 import { db } from "../../../FirebaseConfig";
@@ -16,8 +17,11 @@ import { getStorage, ref, getDownloadURL } from "firebase/storage";
 
 const Jobs = () => {
   const [jobs, setJobs] = useState<JobPost[]>([]);
+  const [originalJobs, setOriginalJobs] = useState<JobPost[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobPost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -93,6 +97,7 @@ const Jobs = () => {
         );
   
         setJobs(jobsData);
+        setOriginalJobs(jobsData);
       } catch (error) {
         console.error("Error fetching jobs:", error);
       } finally {
@@ -102,6 +107,41 @@ const Jobs = () => {
   
     fetchJobs();
   }, []);
+
+
+  useEffect(() => {
+    const listener = () => {
+      console.log("Filter event received!");
+      setFilterModalVisible(true);
+    };
+  
+    eventEmitter.on("openFilter", listener);
+  
+    return () => {
+      eventEmitter.off("openFilter", listener);
+    };
+  }, []);
+
+  const applyJobFilter = (option: string) => {
+    console.log("Filtering jobs for:", option);
+  
+    let filtered = [...originalJobs]; // Make sure originalJobs is defined in your component
+  
+    if (option === "Pilot" || option === "Cabin Crew") {
+      filtered = originalJobs.filter((job) =>
+        job.jobFor?.toLowerCase() === option.toLowerCase()
+      );
+    }
+    else if (option === "Exclude my Country") {
+      const userCountry = "India"; // Replace this with dynamic value if available
+      filtered = originalJobs.filter((job) => !job.base.includes(userCountry));
+    }
+    else {
+      filtered = originalJobs;
+    }
+  
+    setJobs(filtered);
+  };
 
   const renderItem = ({ item }: { item: JobPost }) => (
     <TouchableOpacity onPress={() => openModal(item)}>
@@ -175,6 +215,33 @@ const Jobs = () => {
             </ModalContainer>
           </ModalOverlay>
         )}
+      </Modal>
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterModalVisible(false)}>
+        <ModalOverlay>
+          <ModalBox>
+            <HeadingText>Filter Options</HeadingText>
+
+            {["All", "Exclude my Country", "Pilot", "Cabin Crew"].map((option) => (
+            <TouchableOpacity
+              key={option}
+              onPress={() => {
+                setSelectedOption(option);
+                console.log("Selected Filter:", option);
+                setFilterModalVisible(false);
+                applyJobFilter(option); // Or pass `option` to jobFilter(option) if needed
+              }}
+              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+            >
+              <RadioCircle selected={selectedOption === option} />
+              <OptionText>{option}</OptionText>
+            </TouchableOpacity>
+            ))}
+          </ModalBox>
+        </ModalOverlay>
       </Modal>
     </Container>
   );
@@ -337,4 +404,34 @@ const ChatButton = styled.TouchableOpacity`
   border-radius: 5px;
   align-items: center;
   justify-content: center;
+`;
+
+const ModalBox = styled.View`
+  background-color: white;
+  margin: 40px;
+  padding: 20px;
+  border-radius: 10px;
+  elevation: 5;
+`;
+
+const RadioCircle = styled.View<{ selected: boolean }>`
+  height: 20px;
+  width: 20px;
+  border-radius: 10px;
+  border-width: 2px;
+  border-color: #5DCBCF;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  background-color: ${({ selected }) => (selected ? "#5DCBCF" : "transparent")};
+`;
+
+const OptionText = styled.Text`
+  font-size: 16px;
+  color: #333;
+`;
+
+const ModalActions = styled.View`
+  margin-top: 20px;
+  align-items: center;
 `;

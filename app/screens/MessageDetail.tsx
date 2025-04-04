@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, TextInput, TouchableOpacity } from "react-native";
+import { FlatList, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
 import styled from "styled-components/native";
 import { useLocalSearchParams } from "expo-router";
 import { sendMessage, getOrCreateChat } from "../services/chatService";
@@ -56,7 +56,7 @@ const ChatScreen = () => {
       console.log("User: ", user);
       console.log("Message Text: ", messageText);
   
-      if (!user || !recipientIdStr || messageText.trim() === "") return;
+      if (!user || messageText.trim() === "") return;
   
       console.log("Checking if chatId exists...");
       
@@ -64,6 +64,7 @@ const ChatScreen = () => {
   
       // If chatId is missing, create a new chat first
       if (!chatIdToUse) {
+        if (!recipientIdStr) return;
         console.log("Creating a new chat...");
         
         const newChat = await getOrCreateChat(user.id, recipientIdStr);
@@ -87,31 +88,41 @@ const ChatScreen = () => {
   };
 
   return (
-    <Container>
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) =>
-          user ? (
-            <MessageContainer isOwnMessage={item.senderId === user.id}>
-              <MessageText>{item.text}</MessageText>
-            </MessageContainer>
-          ) : null
-        }
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <Container>
+          <FlatList
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) =>
+              user ? (
+                <MessageContainer isOwnMessage={item.senderId === user.id}>
+                  <MessageText isOwnMessage={item.senderId === user.id}>
+                    {item.text}
+                  </MessageText>
+                </MessageContainer>
+              ) : null
+            }
+            contentContainerStyle={{ flexGrow: 1, paddingBottom: 20, paddingTop: 10 }}
+            inverted // Newest messages appear at the bottom
+          />
 
-      <InputContainer>
-        <TextInputStyled
-          value={messageText}
-          onChangeText={setMessageText}
-          placeholder="Type a message..."
-        />
-        <SendButton onPress={handleSendMessage}>
-          <SendButtonText>Send</SendButtonText>
-        </SendButton>
-      </InputContainer>
-    </Container>
+          <InputContainer>
+            <TextInputStyled
+              value={messageText}
+              onChangeText={setMessageText}
+              placeholder="Type a message..."
+            />
+            <SendButton onPress={handleSendMessage}>
+              <SendButtonText>Send</SendButtonText>
+            </SendButton>
+          </InputContainer>
+        </Container>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -129,16 +140,19 @@ const MessageContainer = styled.View<{ isOwnMessage: boolean }>`
   padding: 10px;
   margin: 5px;
   border-radius: 10px;
+  max-width: 75%;
 `;
 
-const MessageText = styled.Text`
-  color: white;
+const MessageText = styled.Text<{ isOwnMessage: boolean }>`
+  color: ${({ isOwnMessage }) => (isOwnMessage ? "white" : "black")};
 `;
 
 const InputContainer = styled.View`
   flex-direction: row;
   padding: 10px;
   background-color: white;
+  border-top-width: 1px;
+  border-top-color: #ddd;
 `;
 
 const TextInputStyled = styled.TextInput`

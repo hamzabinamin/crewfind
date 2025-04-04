@@ -4,6 +4,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
 
 export default function _layout() {
+
   return (
     <Stack>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
