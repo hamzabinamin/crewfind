@@ -6,6 +6,7 @@ import GradientButton from '../../utilities/GradientButton';
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from 'expo-linear-gradient';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { User } from "../../models/User";
 import { JobPost } from "../../models/JobPost";
 import { Airline } from "../../models/Airline";
 import eventEmitter from "../../utilities/eventEmitter";
@@ -18,10 +19,11 @@ import { getStorage, ref, getDownloadURL } from "firebase/storage";
 const Jobs = () => {
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [originalJobs, setOriginalJobs] = useState<JobPost[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [selectedJob, setSelectedJob] = useState<JobPost | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -33,6 +35,18 @@ const Jobs = () => {
   const closeModal = () => {
     setModalVisible(false);
   };
+
+  useEffect(() => {
+    console.log("Inside Home's useEffect");
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+      if (storedUser) {
+        setUser(storedUser);
+      }
+    };
+    fetchUserFromStorage();
+  }, []);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -111,16 +125,17 @@ const Jobs = () => {
 
   useEffect(() => {
     const listener = () => {
-      console.log("Filter event received!");
+      console.log("Filter event received in Jobs!");
       setFilterModalVisible(true);
     };
   
-    eventEmitter.on("openFilter", listener);
+    eventEmitter.on("openFilter:Jobs", listener);
   
     return () => {
-      eventEmitter.off("openFilter", listener);
+      eventEmitter.off("openFilter:Jobs", listener);
     };
   }, []);
+  
 
   const applyJobFilter = (option: string) => {
     console.log("Filtering jobs for:", option);
@@ -132,8 +147,8 @@ const Jobs = () => {
         job.jobFor?.toLowerCase() === option.toLowerCase()
       );
     }
-    else if (option === "Exclude my Country") {
-      const userCountry = "India"; // Replace this with dynamic value if available
+    else if (option === "Exclude my Country" && user) {
+      const userCountry = user.base; // Replace this with dynamic value if available
       filtered = originalJobs.filter((job) => !job.base.includes(userCountry));
     }
     else {
@@ -166,14 +181,20 @@ const Jobs = () => {
 
   return (
     <Container>
-       {loading && <LoadingIndicator />}
+      {loading && <LoadingIndicator />}
       <HeadingText>Job Board</HeadingText>
+      {!loading && jobs.length === 0 ? (
+        <NoResultsContainer>
+        <NoResultsText>No Jobs to show</NoResultsText>
+        </NoResultsContainer>
+      ) : (
       <FlatList
         data={jobs}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+      )}
       <Modal animationType="slide" transparent visible={modalVisible}>
         {selectedJob && (
           <ModalOverlay>
@@ -232,7 +253,7 @@ const Jobs = () => {
                 setSelectedOption(option);
                 console.log("Selected Filter:", option);
                 setFilterModalVisible(false);
-                applyJobFilter(option); // Or pass `option` to jobFilter(option) if needed
+                applyJobFilter(option); 
               }}
               style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
             >
@@ -271,6 +292,17 @@ const ListItem = styled.View`
   border-radius: 10px;
   margin-bottom: 15px;
   width: 100%;
+`;
+
+const NoResultsContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+`;
+
+const NoResultsText = styled.Text`
+  font-size: 18px;
+  color: #999;
 `;
 
 const LeftContainer = styled.View`
@@ -429,9 +461,4 @@ const RadioCircle = styled.View<{ selected: boolean }>`
 const OptionText = styled.Text`
   font-size: 16px;
   color: #333;
-`;
-
-const ModalActions = styled.View`
-  margin-top: 20px;
-  align-items: center;
 `;

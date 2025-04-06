@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal } from "react-native";
+import * as Location from 'expo-location';
+import haversine from 'haversine-distance';
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
 import GradientButton from '../../utilities/GradientButton';
@@ -7,14 +9,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { Special } from "../../models/Special";
+import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import { db } from "../../../FirebaseConfig";
 import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
 const Specials = () => {
   const [specials, setSpecials] = useState<Special[]>([]);
+  const [originalSpecials, setOriginalSpecials] = useState<Special[]>([]);
   const [selectedSpecial, setSelectedSpecial] = useState<Special | null>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   
@@ -27,40 +34,106 @@ const Specials = () => {
     setModalVisible(false);
   };
 
+  const isWithin150km = (userLoc: any, specialLoc: any) => {
+    const distance = haversine(userLoc, specialLoc); // distance in meters
+    return distance <= 150000 || (specialLoc.latitude === 0 && specialLoc.longitude === 0);
+  };
+
   useEffect(() => {
-      const fetchSpecials = async () => {
-        try {
-          setLoading(true);
-          const specialsSnapshot = await getDocs(collection(db, "Specials"));
-          const specialsData: Special[] = await Promise.all(
-            specialsSnapshot.docs.map(async (specialDoc) => {
-              const specialData = specialDoc.data();
-              console.log("Fetched Specials: ", specialData);
-              const companyImageUrl = specialData.companyImage ? await UtilFunctions.fetchLogoUrl(specialData.companyImage) : "https://via.placeholder.com/60";
-              const backgroundImageUrl = specialData.backgroundImage ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage) : "https://via.placeholder.com/60";
-    
-              return {
-                id: specialDoc.id,
-                companyName: specialData.companyName,
-                dealExpiration: specialData.dealExpiration,
-                companyImageUrl: companyImageUrl,
-                backgroundImageUrl: backgroundImageUrl,
-                createdAt: new Date(specialData.createdAt),
-                updatedAt: new Date(specialData.updatedAt),
-              };
-            })
-          );
-    
-          setSpecials(specialsData);
-        } catch (error) {
-          console.error("Error fetching specials:", error);
-        } finally {
+    const fetchUserLocationAndSpecials = async () => {
+      try {
+        setLoading(true);
+        const { status } = await Location.requestForegroundPermissionsAsync();
+  
+        if (status !== "granted") {
+          alert("Location permission is required to show nearby specials and offers.");
           setLoading(false);
+          return;
         }
-      };
-    
-      fetchSpecials();
+  
+        const location = await Location.getCurrentPositionAsync({});
+        const userLoc = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        setUserLocation(userLoc);
+        console.log("User's location:", userLoc);
+  
+        const specialsSnapshot = await getDocs(collection(db, "Specials"));
+  
+        const specialsData: (Special | null)[] = await Promise.all(
+          specialsSnapshot.docs.map(async (specialDoc) => {
+            const specialData = specialDoc.data();
+            const location = specialData.location || { latitude: 0, longitude: 0 };
+  
+            if (userLoc && !isWithin150km(userLoc, location)) return null;
+  
+            const companyImageUrl = specialData.companyImage
+              ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
+              : "https://via.placeholder.com/60";
+  
+            const backgroundImageUrl = specialData.backgroundImage
+              ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
+              : "https://via.placeholder.com/60";
+  
+            return {
+              id: specialDoc.id,
+              companyName: specialData.companyName,
+              dealExpiration: specialData.dealExpiration,
+              dealType: specialData.dealType,
+              location,
+              companyImageUrl,
+              backgroundImageUrl,
+              createdAt: new Date(specialData.createdAt),
+              updatedAt: new Date(specialData.updatedAt),
+            };
+          })
+        );
+  
+        const filteredSpecials = specialsData.filter(Boolean) as Special[];
+        setSpecials(filteredSpecials);
+        setOriginalSpecials(filteredSpecials);
+      } catch (error) {
+        console.error("Error fetching specials or location:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchUserLocationAndSpecials();
   }, []);
+  
+
+  useEffect(() => {
+    const listener = () => {
+      console.log("Filter event received in CrewSpecials!");
+      setFilterModalVisible(true);
+    };
+  
+    eventEmitter.on("openFilter:CrewSpecials", listener);
+  
+    return () => {
+      eventEmitter.off("openFilter:CrewSpecials", listener);
+    };
+  }, []);
+
+
+  const applySpecialFilter = (option: string) => {
+    console.log("Filtering specials for:", option);
+  
+    let filtered = [...originalSpecials]; // Make sure originalJobs is defined in your component
+  
+    if (option !== "All") {
+      filtered = originalSpecials.filter((special) =>
+        special.dealType?.toLowerCase() === option.toLowerCase()
+      );
+    }
+    else {
+      filtered = originalSpecials;
+    }
+  
+    setSpecials(filtered);
+  };
 
   const renderItem = ({ item }: { item: Special }) => (
     <TouchableOpacity onPress={() => openModal(item)}>
@@ -84,13 +157,19 @@ const Specials = () => {
   return (
     <Container>
       {loading && <LoadingIndicator />}
-      <HeadingText>Nearby Deals</HeadingText>
-      <FlatList
-        data={specials}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+      <HeadingText>Specials</HeadingText>
+      {!loading && specials.length === 0 ? (
+        <NoResultsContainer>
+          <NoResultsText>No Specials to show</NoResultsText>
+        </NoResultsContainer>
+      ) : (
+        <FlatList
+          data={specials}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      )}
       <Modal animationType="slide" transparent visible={modalVisible}>
         {selectedSpecial && (
           <ModalOverlay>
@@ -129,6 +208,33 @@ const Specials = () => {
           </ModalOverlay>
         )}
       </Modal>
+       <Modal
+              visible={filterModalVisible}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setFilterModalVisible(false)}>
+              <ModalOverlay>
+                <ModalBox>
+                  <HeadingText>Filter Options</HeadingText>
+      
+                  {["All", "Hotel", "Food", "Car Rental", "Activities"].map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => {
+                      setSelectedOption(option);
+                      console.log("Selected Filter:", option);
+                      setFilterModalVisible(false);
+                      applySpecialFilter(option); 
+                    }}
+                    style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                  >
+                    <RadioCircle selected={selectedOption === option} />
+                    <OptionText>{option}</OptionText>
+                  </TouchableOpacity>
+                  ))}
+                </ModalBox>
+              </ModalOverlay>
+            </Modal>
     </Container>
   );
 };
@@ -157,6 +263,17 @@ const ListItem = styled.View`
   border-radius: 10px;
   margin-bottom: 15px;
   width: 100%;
+`;
+
+const NoResultsContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+`;
+
+const NoResultsText = styled.Text`
+  font-size: 18px;
+  color: #999;
 `;
 
 const LeftContainer = styled.View`
@@ -304,4 +421,29 @@ const ChatButton = styled.TouchableOpacity`
   border-radius: 5px;
   align-items: center;
   justify-content: center;
+`;
+
+const ModalBox = styled.View`
+  background-color: white;
+  margin: 40px;
+  padding: 20px;
+  border-radius: 10px;
+  elevation: 5;
+`;
+
+const RadioCircle = styled.View<{ selected: boolean }>`
+  height: 20px;
+  width: 20px;
+  border-radius: 10px;
+  border-width: 2px;
+  border-color: #5DCBCF;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  background-color: ${({ selected }) => (selected ? "#5DCBCF" : "transparent")};
+`;
+
+const OptionText = styled.Text`
+  font-size: 16px;
+  color: #333;
 `;

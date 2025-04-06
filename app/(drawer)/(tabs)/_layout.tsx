@@ -7,9 +7,10 @@ import Icon from "react-native-vector-icons/FontAwesome";
 
 export default function _layout() {
 
-  const handleFilterPress = () => {
-    console.log("Emitting openFilter event");
-    eventEmitter.emit("openFilter"); 
+  const handleFilterPress = (routeName: string) => {
+    const eventName = `openFilter:${routeName}`;
+    console.log(`Emitting event: ${eventName}`);
+    eventEmitter.emit(eventName); 
   };
 
   return (
@@ -17,11 +18,11 @@ export default function _layout() {
       screenOptions={({ route }) => ({
         headerLeft: () => <DrawerToggleButton tintColor="#5DCBCF" />,
         headerRight: () =>
-          route.name === "Jobs" ? (
+          route.name === "Jobs" || route.name === "CrewSpecials" ? (
             <TouchableOpacity style={{ marginRight: 15 }} onPress={() => {
               // Handle the filter button press
               console.log('Filter button pressed');
-              handleFilterPress()
+              handleFilterPress(route.name)
             }}>
               <Icon name="filter" size={22} color="#5DCBCF" />
             </TouchableOpacity>
