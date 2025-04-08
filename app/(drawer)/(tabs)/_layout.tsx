@@ -18,7 +18,7 @@ export default function _layout() {
       screenOptions={({ route }) => ({
         headerLeft: () => <DrawerToggleButton tintColor="#5DCBCF" />,
         headerRight: () =>
-          route.name === "Jobs" || route.name === "CrewSpecials" ? (
+          route.name === "Home" || route.name === "Jobs" || route.name === "CrewSpecials" ? (
             <TouchableOpacity style={{ marginRight: 15 }} onPress={() => {
               // Handle the filter button press
               console.log('Filter button pressed');

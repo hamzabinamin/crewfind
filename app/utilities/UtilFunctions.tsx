@@ -134,6 +134,23 @@ class UtilFunctions {
     });
   };
 
+  static getLastSeenText = (lastSeen: Date | null): string => {
+    if (!lastSeen) return "A while ago";
+  
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - lastSeen.getTime()) / 60000); // difference in minutes
+  
+    if (diffInMinutes < 1) return "NOW";
+    if (diffInMinutes <= 15) return "15 minutes ago";
+    if (diffInMinutes <= 30) return "30 minutes ago";
+    if (diffInMinutes <= 60) return "1 hour ago";
+    if (diffInMinutes <= 120) return "2 hours ago";
+    if (diffInMinutes <= 180) return "3 hours ago";
+    if (diffInMinutes <= 240) return "4 hours ago";
+  
+    return "A while ago";
+  };
+
 }
 
 export default UtilFunctions;

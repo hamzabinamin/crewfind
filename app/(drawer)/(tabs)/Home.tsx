@@ -6,6 +6,7 @@ import { Menu, Provider as PaperProvider, Portal} from 'react-native-paper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from "@expo/vector-icons";
 import { User } from "../../models/User";
+import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from "firebase/firestore";
@@ -15,12 +16,15 @@ const screenWidth = Dimensions.get("window").width;
 
 const Home = () => {
   const [crew, setCrew] = useState<User[]>([]);
+  const [originalCrew, setOriginalCrew] = useState<User[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<User | null>(null);
   const [chatIds, setChatIds] = useState<{ [key: string]: string | null }>({});
   const [user, setUser] = useState<User | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [isFriend, setIsFriend] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
+  const [crewModalVisible, setCrewModalVisible] = useState(false);
+  const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
   const menuButtonRef = useRef<View>(null); // ✅ Explicitly type the ref
   const [menuVisible, setMenuVisible] = useState(false);
@@ -228,12 +232,14 @@ const Home = () => {
               flyingHours: crewData.flyingHours,
               friends: crewData.friends,
               blocked: crewData.blocked,
+              lastSeen: crewData.lastSeen ? crewData.lastSeen.toDate?.() ?? new Date(crewData.lastSeen) : null,
               createdAt: new Date(crewData.createdAt),
               updatedAt: new Date(crewData.updatedAt),
             };
           })
         );
         setCrew(crewData);
+        setOriginalCrew(crewData);
         console.log("Chat Ids: ", chatIds);
       } catch (error) {
         console.error("Error fetching crew:", error);
@@ -244,6 +250,81 @@ const Home = () => {
   
     fetchCrew();
   }, [user]);
+
+  useEffect(() => {
+    const listener = () => {
+      console.log("Filter event received in Home!");
+      setCrewModalVisible(true);
+    };
+    eventEmitter.on("openFilter:Home", listener);
+  
+    return () => {
+      eventEmitter.off("openFilter:Home", listener);
+    };
+  }, []);
+
+  type CrewFilter = {
+    position: string | null;
+    friendsOnly: boolean;
+    sex: string | null;
+    relationshipStatus: string | null;
+  };  
+
+  const [filters, setFilters] = useState<{
+    position: "Pilot" | "Cabin Crew" | null;
+    friendsOnly: boolean;
+    sex: "Male" | "Female" | null;
+    relationshipStatus: "Single" | "Married" | "Unspecified" | null;
+  }>({
+    position: null,
+    friendsOnly: false,
+    sex: null,
+    relationshipStatus: null,
+  });
+  
+  //const [selectedFilterOption, setSelectedOption] = useState("All");
+  
+  const resetFilters = () => {
+    setFilters({
+      position: null,
+      friendsOnly: false,
+      sex: null,
+      relationshipStatus: null,
+    });
+    setSelectedOption("All");
+    setCrew(originalCrew);
+  };
+  
+  const handleApplyFilters = () => {
+    applyCrewFilter(filters);
+    setCrewModalVisible(false);
+  };
+
+  const applyCrewFilter = (filters: CrewFilter) => {
+    console.log("Applying crew filters:", filters);
+  
+    let filtered = [...originalCrew];
+  
+    if (filters.position) {
+      console.log("Applying position filter");
+      filtered = filtered.filter((crew) => crew.position === filters.position);
+    }
+  
+    if (filters.friendsOnly) {
+      filtered = filtered.filter((crew) => user?.friends.includes(crew.id));
+    }
+  
+    if (filters.sex) {
+      filtered = filtered.filter((crew) => crew.sex === filters.sex);
+    }
+  
+    if (filters.relationshipStatus) {
+      filtered = filtered.filter((crew) => crew.relationshipStatus === filters.relationshipStatus);
+    }
+
+    setCrew(filtered);
+  };
+  
 
   const renderItem = ({ item }: { item: User }) => (
      <TouchableOpacity onPress={() => openModal(item)}>
@@ -258,7 +339,7 @@ const Home = () => {
             <AirlineName>{item.companyName}</AirlineName>
             <BottomLeftDetails>
               <DetailText>Base: {item.base}</DetailText>
-              <DetailText>Last Seen: {"2 Hours ago"}</DetailText>
+              <DetailText>Last Seen: {UtilFunctions.getLastSeenText(item.lastSeen)}</DetailText>
             </BottomLeftDetails>
           </LeftContainer>
           <RightContainer>
@@ -357,6 +438,111 @@ const Home = () => {
             </ModalContainer>
           </ModalOverlay>
         )}
+      </Modal>
+      <Modal
+        visible={crewModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCrewModalVisible(false)}
+      >
+        <ModalOverlay>
+          <ModalBox>
+            <HeadingText>Filter Options</HeadingText>
+
+            {/* All - Reset Filters */}
+            <TouchableOpacity
+              onPress={() => {
+                const reset = {
+                  position: null,
+                  friendsOnly: false,
+                  sex: null,
+                  relationshipStatus: null,
+                };
+                resetFilters();
+                setSelectedOption("All");
+                applyCrewFilter(reset);
+                setCrewModalVisible(false);
+              }}
+              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+            >
+              <RadioCircle selected={selectedOption === "All"} />
+              <OptionText>All</OptionText>
+            </TouchableOpacity>
+
+            {/* Position Section */}
+            <SectionHeading>Position</SectionHeading>
+            {["Pilot", "Cabin Crew"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  const newFilters = { ...filters, position: option as "Pilot" | "Cabin Crew" };
+                  setFilters(newFilters);
+                  setSelectedOption(option);
+                  applyCrewFilter(newFilters);
+                  setCrewModalVisible(false);
+                }}
+                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+              >
+                <RadioCircle selected={filters.position === option} />
+                <OptionText>{option}</OptionText>
+              </TouchableOpacity>
+            ))}
+
+            {/* Friends Only */}
+            <SectionHeading>Friends Only</SectionHeading>
+            <TouchableOpacity
+              onPress={() => {
+                const newFilters = { ...filters, friendsOnly: !filters.friendsOnly };
+                setFilters(newFilters);
+                setSelectedOption("Friends Only");
+                applyCrewFilter(newFilters);
+                setCrewModalVisible(false);
+              }}
+              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+            >
+              <RadioCircle selected={filters.friendsOnly === true} />
+              <OptionText>Friends Only</OptionText>
+            </TouchableOpacity>
+
+            {/* Sex Section */}
+            <SectionHeading>Sex</SectionHeading>
+            {["Male", "Female"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  const newFilters = { ...filters, sex: option as "Male" | "Female" };
+                  setFilters(newFilters);
+                  setSelectedOption(option);
+                  applyCrewFilter(newFilters);
+                  setCrewModalVisible(false);
+                }}
+                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+              >
+                <RadioCircle selected={filters.sex === option} />
+                <OptionText>{option}</OptionText>
+              </TouchableOpacity>
+            ))}
+
+            {/* Relationship Status */}
+            <SectionHeading>Relationship Status</SectionHeading>
+            {["Single", "Married", "Unspecified"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  const newFilters = { ...filters, relationshipStatus: option as "Single" | "Married" | "Unspecified" };
+                  setFilters(newFilters);
+                  setSelectedOption(option);
+                  applyCrewFilter(newFilters);
+                  setCrewModalVisible(false);
+                }}
+                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+              >
+                <RadioCircle selected={filters.relationshipStatus === option} />
+                <OptionText>{option}</OptionText>
+              </TouchableOpacity>
+            ))}
+          </ModalBox>
+        </ModalOverlay>
       </Modal>
     </Container>
   );
@@ -522,4 +708,51 @@ const ActionButton = styled.TouchableOpacity`
   background-color: #007bff;
   justify-content: center;
   align-items: center;
+`;
+
+const SectionHeading = styled.Text`
+  font-size: 16px;
+  font-weight: bold;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  color: #333;
+`;
+
+const ModalBox = styled.View`
+  background-color: white;
+  margin: 40px;
+  padding: 20px;
+  border-radius: 10px;
+  elevation: 5;
+`;
+
+const RadioCircle = ({ selected }: { selected: boolean }) => (
+  <View
+    style={{
+      height: 20,
+      width: 20,
+      borderRadius: 10,
+      borderWidth: 2,
+      borderColor: "#5DCBCF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+    }}
+  >
+    {selected ? (
+      <View
+        style={{
+          height: 10,
+          width: 10,
+          borderRadius: 5,
+          backgroundColor: "#5DCBCF",
+        }}
+      />
+    ) : null}
+  </View>
+);
+
+const OptionText = styled.Text`
+  font-size: 14px;
+  color: #333;
 `;

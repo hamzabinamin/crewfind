@@ -208,33 +208,33 @@ const Specials = () => {
           </ModalOverlay>
         )}
       </Modal>
-       <Modal
-              visible={filterModalVisible}
-              transparent
-              animationType="slide"
-              onRequestClose={() => setFilterModalVisible(false)}>
-              <ModalOverlay>
-                <ModalBox>
-                  <HeadingText>Filter Options</HeadingText>
-      
-                  {["All", "Hotel", "Food", "Car Rental", "Activities"].map((option) => (
-                  <TouchableOpacity
-                    key={option}
-                    onPress={() => {
-                      setSelectedOption(option);
-                      console.log("Selected Filter:", option);
-                      setFilterModalVisible(false);
-                      applySpecialFilter(option); 
-                    }}
-                    style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-                  >
-                    <RadioCircle selected={selectedOption === option} />
-                    <OptionText>{option}</OptionText>
-                  </TouchableOpacity>
-                  ))}
-                </ModalBox>
-              </ModalOverlay>
-            </Modal>
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterModalVisible(false)}>
+        <ModalOverlay>
+          <ModalBox>
+            <HeadingText>Filter Options</HeadingText>
+
+            {["All", "Hotel", "Food", "Car Rental", "Activities"].map((option) => (
+            <TouchableOpacity
+              key={option}
+              onPress={() => {
+                setSelectedOption(option);
+                console.log("Selected Filter:", option);
+                setFilterModalVisible(false);
+                applySpecialFilter(option); 
+              }}
+              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+            >
+              <RadioCircle selected={selectedOption === option} />
+              <OptionText>{option}</OptionText>
+            </TouchableOpacity>
+            ))}
+          </ModalBox>
+        </ModalOverlay>
+      </Modal>
     </Container>
   );
 };

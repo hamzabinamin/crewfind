@@ -22,6 +22,7 @@ export interface User {
     friends: string[],
     blocked: string[],
     flyingHours: number,
+    lastSeen: Date,
     createdAt: Date;
     updatedAt: Date;
   }
