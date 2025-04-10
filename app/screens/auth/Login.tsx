@@ -52,6 +52,11 @@ const Login = () => {
           if (userDoc.exists()) {
             const userData = userDoc.data();
 
+            if (userData.isDeactivated === true) {
+              alert("This account has been deactivated.");
+              return;
+            }
+
             const profileImageUrl = userData.profileImage ? await UtilFunctions.fetchLogoUrl(userData.profileImage) : "https://via.placeholder.com/60";
             const backgroundImageUrl = userData.backgroundImage ? await UtilFunctions.fetchLogoUrl(userData.backgroundImage) : "https://via.placeholder.com/60";
            
@@ -75,6 +80,9 @@ const Login = () => {
               licenseType: userData.licenseType || "",
               experiences: userData.experiences || [],
               flyingHours: userData.flyingHours || 0,
+              friends: userData.friends,
+              blocked: userData.blocked,
+              lastSeen: userData.lastSeen ? userData.lastSeen.toDate?.() ?? new Date(userData.lastSeen) : null,
               createdAt: userData.createdAt && userData.createdAt.toDate ? userData.createdAt.toDate() : new Date(),
               updatedAt: userData.updatedAt && userData.updatedAt.toDate ? userData.updatedAt.toDate() : new Date()
             };
