@@ -379,7 +379,7 @@ const Home = () => {
                   <View>
                     <HeadingTextModal>{selectedCrew.name} {selectedCrew.surName}</HeadingTextModal>
                     <SubText>Base: {selectedCrew.base}</SubText>
-                    <SubText>Last Seen: {"2 hours ago"}</SubText>
+                    <SubText>Last Seen: {UtilFunctions.getLastSeenText(selectedCrew.lastSeen)}</SubText>
                   </View>
                   <ProfileImage source={{ uri: selectedCrew.profileImageUrl }} />
                 </ProfileHeader>

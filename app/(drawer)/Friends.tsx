@@ -10,6 +10,7 @@ import { db } from "../../FirebaseConfig";
 const Friends = () => {
   const [friends, setFriends] = useState<User[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
   const [blockedUsers, setUsers] = useState([
@@ -105,6 +106,9 @@ const Friends = () => {
     }
   }, [user]); // Runs when `user` changes
   
+  const filteredFriends = friends.filter(friend =>
+    `${friend.name} ${friend.surName}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Toggle status
   const toggleStatus = (id: string) => {
@@ -150,12 +154,24 @@ const Friends = () => {
     <Container>
       {loading && <LoadingIndicator />}
       <Heading>Friends List</Heading>
+      <SearchBar
+        placeholder="Search Friends"
+        placeholderTextColor="#aaa"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+      {filteredFriends.length === 0 ? (
+        <EmptyContainer>
+          <EmptyMessage>No friends to show</EmptyMessage>
+        </EmptyContainer>
+      ) : (
       <FlatList
-        data={friends}
+        data={filteredFriends}
         renderItem={renderUser}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+    )}
     </Container>
   );
 };
@@ -213,4 +229,30 @@ const ButtonText = styled.Text`
   font-size: 14px;
   font-weight: bold;
   color: #fff;
+`;
+
+const SearchBar = styled.TextInput`
+  height: 50px;
+  background-color: #fff;
+  border-radius: 25px;
+  padding: 0 20px;
+  font-size: 16px;
+  margin-bottom: 10px;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 3;
+`;
+
+const EmptyContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+`;
+
+const EmptyMessage = styled.Text`
+  text-align: center;
+  font-size: 18px;
+  color: #999;
+  margin-top: 0px;
 `;

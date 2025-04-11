@@ -10,6 +10,7 @@ import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
 const Airlines = () => {
   const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -44,6 +45,10 @@ const Airlines = () => {
       fetchAirlines();
   }, []);
 
+  const filteredAirlines = airlines.filter((airline) =>
+    airline.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Render each airline row
   const renderAirline = ({ item }: { item: Airline }) => (
     <AirlineRow>
@@ -59,12 +64,24 @@ const Airlines = () => {
     <Container>
        {loading && <LoadingIndicator />}
       <Heading>Airlines List</Heading>
+      <SearchBar
+        placeholder="Search Airlines"
+        placeholderTextColor="#aaa"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+      {filteredAirlines.length === 0 ? (
+        <EmptyContainer>
+          <EmptyMessage>No airlines to show</EmptyMessage>
+        </EmptyContainer>
+      ) : (
       <FlatList
-        data={airlines}
+        data={filteredAirlines}
         renderItem={renderAirline}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+      )}
     </Container>
   );
 };
@@ -116,3 +133,28 @@ const ChatButton = styled.TouchableOpacity`
   padding: 10px;
 `;
 
+const SearchBar = styled.TextInput`
+  height: 50px;
+  background-color: #fff;
+  border-radius: 25px;
+  padding: 0 20px;
+  font-size: 16px;
+  margin-bottom: 10px;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 3;
+`;
+
+const EmptyContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+`;
+
+const EmptyMessage = styled.Text`
+  text-align: center;
+  font-size: 18px;
+  color: #999;
+  margin-top: 0px;
+`;

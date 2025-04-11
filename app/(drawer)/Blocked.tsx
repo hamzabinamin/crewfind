@@ -10,6 +10,7 @@ import { db } from "../../FirebaseConfig";
 const Blocked = () => {
   const [blocked, setBlocked] = useState<User[]>([]);
   const [user, setUser] = useState<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -98,8 +99,11 @@ const Blocked = () => {
       fetchFriends();
     }
   }, [user]); // Runs when `user` changes
-  
 
+  const filteredBlocked = blocked.filter(user =>
+    `${user.name} ${user.surName}`.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
   // Toggle block/unblock status
   const toggleBlockStatus = async (user: User, id: string) => {
     if (user) {
@@ -180,12 +184,24 @@ const Blocked = () => {
     <Container>
       {loading && <LoadingIndicator />}
       <Heading>Blocked List</Heading>
+      <SearchBar
+        placeholder="Search Blocked Users"
+        placeholderTextColor="#aaa"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
+      {filteredBlocked.length === 0 ? (
+        <EmptyContainer>
+          <EmptyMessage>No blocked users to show</EmptyMessage>
+        </EmptyContainer>
+      ) : (
       <FlatList
-        data={blocked}
+        data={filteredBlocked}
         renderItem={renderBlockedUser}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
+      )}
     </Container>
   );
 };
@@ -243,4 +259,30 @@ const ButtonText = styled.Text`
   font-size: 14px;
   font-weight: bold;
   color: #fff;
+`;
+
+const SearchBar = styled.TextInput`
+  height: 50px;
+  background-color: #fff;
+  border-radius: 25px;
+  padding: 0 20px;
+  font-size: 16px;
+  margin-bottom: 10px;
+  shadow-color: #000;
+  shadow-opacity: 0.1;
+  shadow-radius: 4px;
+  elevation: 3;
+`;
+
+const EmptyContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+`;
+
+const EmptyMessage = styled.Text`
+  text-align: center;
+  font-size: 18px;
+  color: #999;
+  margin-top: 0px;
 `;
