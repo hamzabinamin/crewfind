@@ -6,6 +6,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { useRouter,  useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
@@ -157,81 +158,83 @@ const Register = () => {
   };
 
   return (
-    <Container>
-      {loading && <LoadingIndicator />}
-      <ImageContainer>
-        <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-        <Overlay />
-      </ImageContainer>
-      <HeadingText>
-        {cameFromSettings ? "Profile " : "Create an  "}
-        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-      </HeadingText>
-      <Form>
-        <InputContainer>
-          <StyledIconEmail name="user" size={20} color="#999999" />
-          <Input placeholder="Name" placeholderTextColor="#999999" keyboardType="default" value={name} onChangeText={setName} />
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="user" size={20} color="#999" />
-          <Input placeholder="Surname" placeholderTextColor="#999999" keyboardType="default" value={surname} onChangeText={setSurname} />
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="envelope" size={20} color="#999999" />
-          <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cameFromSettings} />
-        </InputContainer>
-        {!cameFromSettings && (
+    <DismissKeyboardView>
+      <Container>
+        {loading && <LoadingIndicator />}
+        <ImageContainer>
+          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
+          <Overlay />
+        </ImageContainer>
+        <HeadingText>
+          {cameFromSettings ? "Profile " : "Create an  "}
+          <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
+        </HeadingText>
+        <Form>
           <InputContainer>
-            <StyledIconEmail name="lock" size={20} color="#999999" />
-            <Input 
-              placeholder="Password" 
-              placeholderTextColor="#999999" 
-              keyboardType="default" 
-              secureTextEntry={true} 
-              onChangeText={setPassword} 
-            />
+            <StyledIconEmail name="user" size={20} color="#999999" />
+            <Input placeholder="Name" placeholderTextColor="#999999" keyboardType="default" value={name} onChangeText={setName} />
           </InputContainer>
-        )}
-        <InputContainer>
-          <StyledIconEmail name="map-marker" size={20} color="#999999" />
-          <Input
-            placeholder="Base"
-            placeholderTextColor="#999999"
-            editable={false}
-            value={base} // Show the selected base country
-          />
-          <TouchableOpacity onPress={() => setShowModal(true)}>
-            <Icon name="caret-down" size={20} color="#999999" />
-          </TouchableOpacity>
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="flag" size={20} color="#999999" />
-          <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
-        </InputContainer>
-        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"} onPress={handleStep1Press} />
-      </Form>
-
-      {/* Country Selection Modal */}
-      <Modal transparent={true} visible={showModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={countries}
-              renderItem={({ item }) => (
-                <CountryOption onPress={() => handleCountrySelect(item)}>
-                  <CountryText>{item}</CountryText>
-                </CountryOption>
-              )}
-              keyExtractor={(item) => item}
-              style={{ maxHeight: 300 }} // Set the max height for the modal content
+          <InputContainer>
+            <StyledIconEmail name="user" size={20} color="#999" />
+            <Input placeholder="Surname" placeholderTextColor="#999999" keyboardType="default" value={surname} onChangeText={setSurname} />
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="envelope" size={20} color="#999999" />
+            <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cameFromSettings} />
+          </InputContainer>
+          {!cameFromSettings && (
+            <InputContainer>
+              <StyledIconEmail name="lock" size={20} color="#999999" />
+              <Input 
+                placeholder="Password" 
+                placeholderTextColor="#999999" 
+                keyboardType="default" 
+                secureTextEntry={true} 
+                onChangeText={setPassword} 
+              />
+            </InputContainer>
+          )}
+          <InputContainer>
+            <StyledIconEmail name="map-marker" size={20} color="#999999" />
+            <Input
+              placeholder="Base"
+              placeholderTextColor="#999999"
+              editable={false}
+              value={base} // Show the selected base country
             />
-            <CloseButton onPress={() => setShowModal(false)}>
-              <Text style={{ color: "#fff" }}>Cancel</Text>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-    </Container>
+            <TouchableOpacity onPress={() => setShowModal(true)}>
+              <Icon name="caret-down" size={20} color="#999999" />
+            </TouchableOpacity>
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="flag" size={20} color="#999999" />
+            <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
+          </InputContainer>
+          <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"} onPress={handleStep1Press} />
+        </Form>
+
+        {/* Country Selection Modal */}
+        <Modal transparent={true} visible={showModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={countries}
+                renderItem={({ item }) => (
+                  <CountryOption onPress={() => handleCountrySelect(item)}>
+                    <CountryText>{item}</CountryText>
+                  </CountryOption>
+                )}
+                keyExtractor={(item) => item}
+                style={{ maxHeight: 300 }} // Set the max height for the modal content
+              />
+              <CloseButton onPress={() => setShowModal(false)}>
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
+      </Container>
+    </DismissKeyboardView>
   );
 };
 

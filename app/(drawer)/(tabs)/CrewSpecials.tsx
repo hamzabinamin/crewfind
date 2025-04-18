@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal } from "react-native";
+import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal, TouchableWithoutFeedback, Alert, Linking } from "react-native";
 import * as Location from 'expo-location';
 import haversine from 'haversine-distance';
 import { useRouter } from "expo-router";
@@ -23,6 +23,7 @@ const Specials = () => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   
   const openModal = (special: Special) => {
@@ -40,69 +41,8 @@ const Specials = () => {
   };
 
   useEffect(() => {
-    const fetchUserLocationAndSpecials = async () => {
-      try {
-        setLoading(true);
-        const { status } = await Location.requestForegroundPermissionsAsync();
-  
-        if (status !== "granted") {
-          alert("Location permission is required to show nearby specials and offers.");
-          setLoading(false);
-          return;
-        }
-  
-        const location = await Location.getCurrentPositionAsync({});
-        const userLoc = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        };
-        setUserLocation(userLoc);
-        console.log("User's location:", userLoc);
-  
-        const specialsSnapshot = await getDocs(collection(db, "Specials"));
-  
-        const specialsData: (Special | null)[] = await Promise.all(
-          specialsSnapshot.docs.map(async (specialDoc) => {
-            const specialData = specialDoc.data();
-            const location = specialData.location || { latitude: 0, longitude: 0 };
-  
-            if (userLoc && !isWithin150km(userLoc, location)) return null;
-  
-            const companyImageUrl = specialData.companyImage
-              ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
-              : "https://via.placeholder.com/60";
-  
-            const backgroundImageUrl = specialData.backgroundImage
-              ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
-              : "https://via.placeholder.com/60";
-  
-            return {
-              id: specialDoc.id,
-              companyName: specialData.companyName,
-              dealExpiration: specialData.dealExpiration,
-              dealType: specialData.dealType,
-              location,
-              companyImageUrl,
-              backgroundImageUrl,
-              createdAt: new Date(specialData.createdAt),
-              updatedAt: new Date(specialData.updatedAt),
-            };
-          })
-        );
-  
-        const filteredSpecials = specialsData.filter(Boolean) as Special[];
-        setSpecials(filteredSpecials);
-        setOriginalSpecials(filteredSpecials);
-      } catch (error) {
-        console.error("Error fetching specials or location:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
     fetchUserLocationAndSpecials();
   }, []);
-  
 
   useEffect(() => {
     const listener = () => {
@@ -117,6 +57,119 @@ const Specials = () => {
     };
   }, []);
 
+  const askForLocationWithPrePrompt = async () => {
+    return new Promise((resolve) => {
+      Alert.alert(
+        "Allow Location Access?",
+        "We use your location to show nearby specials and offers. Do you want to allow access?",
+        [
+          {
+            text: "Not Now",
+            style: "cancel",
+            onPress: () => resolve(false),
+          },
+          {
+            text: "Allow",
+            onPress: () => resolve(true),
+          },
+        ]
+      );
+    });
+  };
+
+  const fetchUserLocationAndSpecials = async () => {
+    try {
+      setRefreshing(true);
+      setLoading(true);
+
+      const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+
+      if (existingStatus !== "granted") {
+        // Show a helpful explanation
+        const userAgreed = await new Promise((resolve) => {
+          Alert.alert(
+            "Location Access Needed",
+            "We need your location to show nearby specials and offers. Allow location access?",
+            [
+              { text: "Not Now", style: "cancel", onPress: () => resolve(false) },
+              { text: "Allow", onPress: () => resolve(true) },
+            ]
+          );
+        });
+    
+        if (!userAgreed) {
+          setRefreshing(false);
+          setLoading(false);
+          return;
+        }
+    
+        const { status } = await Location.requestForegroundPermissionsAsync();
+    
+        if (status !== "granted") {
+          // 🛑 NOW the user has seen the system permission prompt
+          Alert.alert(
+            "Enable Location in Settings",
+            "To show nearby specials, please allow location access from Settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]
+          );
+          setRefreshing(false);
+          setLoading(false);
+          return;
+        }
+      }
+      
+      const location = await Location.getCurrentPositionAsync({});
+      const userLoc = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setUserLocation(userLoc);
+      console.log("User's location:", userLoc);
+
+      const specialsSnapshot = await getDocs(collection(db, "Specials"));
+
+      const specialsData: (Special | null)[] = await Promise.all(
+        specialsSnapshot.docs.map(async (specialDoc) => {
+          const specialData = specialDoc.data();
+          const location = specialData.location || { latitude: 0, longitude: 0 };
+
+          if (userLoc && !isWithin150km(userLoc, location)) return null;
+
+          const companyImageUrl = specialData.companyImage
+            ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
+            : "https://via.placeholder.com/60";
+
+          const backgroundImageUrl = specialData.backgroundImage
+            ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
+            : "https://via.placeholder.com/60";
+
+          return {
+            id: specialDoc.id,
+            companyName: specialData.companyName,
+            dealExpiration: specialData.dealExpiration,
+            dealType: specialData.dealType,
+            location,
+            companyImageUrl,
+            backgroundImageUrl,
+            createdAt: new Date(specialData.createdAt),
+            updatedAt: new Date(specialData.updatedAt),
+          };
+        })
+      );
+
+      const filteredSpecials = specialsData.filter(Boolean) as Special[];
+      setSpecials(filteredSpecials);
+      setOriginalSpecials(filteredSpecials);
+    } catch (error) {
+      console.error("Error fetching specials or location:", error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   const applySpecialFilter = (option: string) => {
     console.log("Filtering specials for:", option);
@@ -158,18 +211,21 @@ const Specials = () => {
     <Container>
       {loading && <LoadingIndicator />}
       <HeadingText>Specials</HeadingText>
-      {!loading && specials.length === 0 ? (
-        <NoResultsContainer>
-          <NoResultsText>No Specials to show</NoResultsText>
-        </NoResultsContainer>
-      ) : (
-        <FlatList
-          data={specials}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+      <FlatList
+        data={specials}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 20, flexGrow: 1 }}
+        refreshing={refreshing}
+        onRefresh={fetchUserLocationAndSpecials}
+        ListEmptyComponent={
+          !loading ? (
+            <NoResultsContainer>
+              <NoResultsText>No Specials to show</NoResultsText>
+            </NoResultsContainer>
+          ) : null
+        }
+      />
       <Modal animationType="slide" transparent visible={modalVisible}>
         {selectedSpecial && (
           <ModalOverlay>
@@ -213,27 +269,31 @@ const Specials = () => {
         transparent
         animationType="slide"
         onRequestClose={() => setFilterModalVisible(false)}>
-        <ModalOverlay>
-          <ModalBox>
-            <HeadingText>Filter Options</HeadingText>
+        <TouchableWithoutFeedback onPress={() => setFilterModalVisible(false)}>
+          <ModalOverlay>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <ModalBox>
+                <HeadingText>Filter Options</HeadingText>
 
-            {["All", "Hotel", "Food", "Car Rental", "Activities"].map((option) => (
-            <TouchableOpacity
-              key={option}
-              onPress={() => {
-                setSelectedOption(option);
-                console.log("Selected Filter:", option);
-                setFilterModalVisible(false);
-                applySpecialFilter(option); 
-              }}
-              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-            >
-              <RadioCircle selected={selectedOption === option} />
-              <OptionText>{option}</OptionText>
-            </TouchableOpacity>
-            ))}
-          </ModalBox>
-        </ModalOverlay>
+                {["All", "Hotel", "Food", "Car Rental", "Activities"].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => {
+                    setSelectedOption(option);
+                    console.log("Selected Filter:", option);
+                    setFilterModalVisible(false);
+                    applySpecialFilter(option); 
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                >
+                  <RadioCircle selected={selectedOption === option} />
+                  <OptionText>{option}</OptionText>
+                </TouchableOpacity>
+                ))}
+              </ModalBox>
+            </TouchableWithoutFeedback>
+          </ModalOverlay>
+        </TouchableWithoutFeedback>
       </Modal>
     </Container>
   );

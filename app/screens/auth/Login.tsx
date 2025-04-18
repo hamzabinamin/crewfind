@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { auth, db } from '../../../FirebaseConfig'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { doc, getDoc } from "firebase/firestore";
@@ -114,6 +115,7 @@ const Login = () => {
     };
 
     return (
+      <DismissKeyboardView>
         <Container>
             {loading && <LoadingIndicator />}
             <ImageContainer>
@@ -147,6 +149,7 @@ const Login = () => {
                 </RegisterLink>
             </Form>
         </Container>
+      </DismissKeyboardView>
     );
 };
 

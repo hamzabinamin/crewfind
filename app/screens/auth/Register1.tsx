@@ -7,6 +7,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
@@ -156,147 +157,149 @@ const Register1 = () => {
   };
 
   return (
-    <Container>
-      {loading && <LoadingIndicator />}
-      <ImageContainer>
-        <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-        <Overlay />
-      </ImageContainer>
-      <HeadingText>
-      {cameFromSettings ? "Experience " : "Create an  "}
-      <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-      </HeadingText>
-      <Form>
-        <InputContainer>
-          <StyledIconEmail name="briefcase" size={20} color="#999999" />
-          <Input
-            placeholder="Position"
-            placeholderTextColor="#999999"
-            keyboardType="default"
-            value={position}
-            editable={false}
-          />
-          <TouchableOpacity onPress={() => setShowPositionModal(true)}>
-            <Icon name="caret-down" size={20} color="#999999" />
-          </TouchableOpacity>
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="id-badge" size={20} color="#999999" />
-          <Input
-            placeholder="Company Name"
-            placeholderTextColor="#999999"
-            keyboardType="default"
-            onChangeText={setCompanyName}
-            value={companyName}
-          />
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="calendar" size={20} color="#999999" />
-          <Input
-            placeholder="Age"
-            placeholderTextColor="#999999"
-            keyboardType="numeric"
-            onChangeText={setAge}
-            value={age}
-          />
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="mars" size={20} color="#999999" />
-          <Input
-            placeholder="Sex"
-            placeholderTextColor="#999999"
-            value={sex}
-            editable={false}
-          />
-          <TouchableOpacity onPress={() => setShowSexModal(true)}>
-            <Icon name="caret-down" size={20} color="#999999" />
-          </TouchableOpacity>
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="users" size={20} color="#999999" />
-          <Input
-            placeholder="Relationship Status"
-            placeholderTextColor="#999999"
-            value={relationshipStatus}
-            editable={false}
-          />
-          <TouchableOpacity onPress={() => setShowRelationshipModal(true)}>
-            <Icon name="caret-down" size={20} color="#999999" />
-          </TouchableOpacity>
-        </InputContainer>
-        <InputContainer>
-          <StyledIconEmail name="paint-brush" size={20} color="#999999" />
-          <Input
-            placeholder="Hobbies (e.g., Reading, Swimming)"
-            placeholderTextColor="#999999"
-            keyboardType="default"
-            onChangeText={setHobbies}
-            value={hobbies}
-          />
-        </InputContainer>
-        <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 2 of 3"} onPress={handleStep2Press} />
-      </Form>
-
-      {/* Position Modal */}
-      <Modal transparent={true} visible={showPositionModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={positionOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => { setPosition(item); setShowPositionModal(false); }}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
+    <DismissKeyboardView>
+      <Container>
+        {loading && <LoadingIndicator />}
+        <ImageContainer>
+          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
+          <Overlay />
+        </ImageContainer>
+        <HeadingText>
+        {cameFromSettings ? "Experience " : "Create an  "}
+        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
+        </HeadingText>
+        <Form>
+          <InputContainer>
+            <StyledIconEmail name="briefcase" size={20} color="#999999" />
+            <Input
+              placeholder="Position"
+              placeholderTextColor="#999999"
+              keyboardType="default"
+              value={position}
+              editable={false}
             />
-            <CloseButton onPress={() => setShowSexModal(false)}>
-              <Text style={{ color: "#fff" }}>Cancel</Text>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-
-      {/* Sex Modal */}
-      <Modal transparent={true} visible={showSexModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={sexOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => { setSex(item); setShowSexModal(false); }}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
+            <TouchableOpacity onPress={() => setShowPositionModal(true)}>
+              <Icon name="caret-down" size={20} color="#999999" />
+            </TouchableOpacity>
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="id-badge" size={20} color="#999999" />
+            <Input
+              placeholder="Company Name"
+              placeholderTextColor="#999999"
+              keyboardType="default"
+              onChangeText={setCompanyName}
+              value={companyName}
             />
-             <CloseButton onPress={() => setShowSexModal(false)}>
-              <Text style={{ color: "#fff" }}>Cancel</Text>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-
-      {/* Relationship Status Modal */}
-      <Modal transparent={true} visible={showRelationshipModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={relationshipOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => { setRelationshipStatus(item); setShowRelationshipModal(false); }}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="calendar" size={20} color="#999999" />
+            <Input
+              placeholder="Age"
+              placeholderTextColor="#999999"
+              keyboardType="numeric"
+              onChangeText={setAge}
+              value={age}
             />
-            <CloseButton onPress={() => setShowSexModal(false)}>
-              <Text style={{ color: "#fff" }}>Cancel</Text>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-    </Container>
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="mars" size={20} color="#999999" />
+            <Input
+              placeholder="Sex"
+              placeholderTextColor="#999999"
+              value={sex}
+              editable={false}
+            />
+            <TouchableOpacity onPress={() => setShowSexModal(true)}>
+              <Icon name="caret-down" size={20} color="#999999" />
+            </TouchableOpacity>
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="users" size={20} color="#999999" />
+            <Input
+              placeholder="Relationship Status"
+              placeholderTextColor="#999999"
+              value={relationshipStatus}
+              editable={false}
+            />
+            <TouchableOpacity onPress={() => setShowRelationshipModal(true)}>
+              <Icon name="caret-down" size={20} color="#999999" />
+            </TouchableOpacity>
+          </InputContainer>
+          <InputContainer>
+            <StyledIconEmail name="paint-brush" size={20} color="#999999" />
+            <Input
+              placeholder="Hobbies (e.g., Reading, Swimming)"
+              placeholderTextColor="#999999"
+              keyboardType="default"
+              onChangeText={setHobbies}
+              value={hobbies}
+            />
+          </InputContainer>
+          <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 2 of 3"} onPress={handleStep2Press} />
+        </Form>
+
+        {/* Position Modal */}
+        <Modal transparent={true} visible={showPositionModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={positionOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => { setPosition(item); setShowPositionModal(false); }}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowSexModal(false)}>
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
+
+        {/* Sex Modal */}
+        <Modal transparent={true} visible={showSexModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={sexOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => { setSex(item); setShowSexModal(false); }}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowSexModal(false)}>
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
+
+        {/* Relationship Status Modal */}
+        <Modal transparent={true} visible={showRelationshipModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={relationshipOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => { setRelationshipStatus(item); setShowRelationshipModal(false); }}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowSexModal(false)}>
+                <Text style={{ color: "#fff" }}>Cancel</Text>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
+      </Container>
+    </DismissKeyboardView>
   );
 };
 

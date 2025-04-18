@@ -3,6 +3,7 @@ import React from "react";
 import styled from 'styled-components/native';
 import GradientButton from '../../utilities/GradientButton';
 import Icon from 'react-native-vector-icons/FontAwesome';
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -12,6 +13,7 @@ const handleLoginPress = () => {
 
 const Login = () => {
     return (
+      <DismissKeyboardView>
         <Container>
             <ImageContainer>
                 <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
@@ -29,6 +31,7 @@ const Login = () => {
               <ForgotPasswordText><BlueText>Note:</BlueText> Enter the email address associated with your account and we'll send an email with instructions to reset your password.</ForgotPasswordText>
             </Form>
         </Container>
+      </DismissKeyboardView>
     );
 };
 

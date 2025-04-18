@@ -15,7 +15,10 @@
     },
     "ios": {
       "bundleIdentifier": "com.fulltrade.crewfind",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to show nearby specials and offers."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -30,10 +33,28 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-dev-client"
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3141b742-d0db-4b62-b493-eae94802fcda"
+      }
+    },
+    "owner": "hamzabinamin"
   }
 }

@@ -8,6 +8,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { getFirestore, setDoc, doc, getDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from '../../../FirebaseConfig'
@@ -190,178 +191,180 @@ const Register3 = () => {
   };
 
   return (
-    <Container>
-      {loading && <LoadingIndicator />}
-      <ImageContainer>
-        <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
-        <Overlay />
-      </ImageContainer>
-      <HeadingText>
-        {cameFromSettings ? "Experience " : "Create an  "}
-        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-      </HeadingText>
-      <ScrollView style={{ flex: 1, width: '100%', marginTop: 140 }} contentContainerStyle={{ alignItems: 'center' }}>
-        <Form>
-          {/* License Input */}
-          <InputContainer>
-            <StyledIconEmail name="id-card" size={20} color="#999999" />
-            <Input
-              placeholder="License"
-              placeholderTextColor="#999999"
-              value=""
-              onChangeText={() => {}}
-            />
-            <DropdownIconContainer onPress={() => setShowLicenseModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </DropdownIconContainer>
-          </InputContainer>
+    <DismissKeyboardView>
+        <Container>
+        {loading && <LoadingIndicator />}
+        <ImageContainer>
+          <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
+          <Overlay />
+        </ImageContainer>
+        <HeadingText>
+          {cameFromSettings ? "Experience " : "Create an  "}
+          <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
+        </HeadingText>
+        <ScrollView style={{ flex: 1, width: '100%', marginTop: 140 }} contentContainerStyle={{ alignItems: 'center' }}>
+          <Form>
+            {/* License Input */}
+            <InputContainer>
+              <StyledIconEmail name="id-card" size={20} color="#999999" />
+              <Input
+                placeholder="License"
+                placeholderTextColor="#999999"
+                value=""
+                onChangeText={() => {}}
+              />
+              <DropdownIconContainer onPress={() => setShowLicenseModal(true)}>
+                <Icon name="caret-down" size={20} color="#999999" />
+              </DropdownIconContainer>
+            </InputContainer>
 
-          <TagsContainer>
-            {licenses.length > 0 &&
-              licenses.map((type) => (
-                <Tag key={type}>
-                  <TagText>{type}</TagText>
-                  <TagDeleteButton onPress={() => handleTagDelete(type)}>
+            <TagsContainer>
+              {licenses.length > 0 &&
+                licenses.map((type) => (
+                  <Tag key={type}>
+                    <TagText>{type}</TagText>
+                    <TagDeleteButton onPress={() => handleTagDelete(type)}>
+                      <Icon name="times" size={14} color="white" />
+                    </TagDeleteButton>
+                  </Tag>
+                ))}
+            </TagsContainer>
+
+            {/* License Type with Tags */}
+            <InputContainer>
+              <StyledIconEmail name="clipboard" size={20} color="#999999" />
+              <Input
+                placeholder="License Type"
+                placeholderTextColor="#999999"
+                keyboardType="default"
+                value={licenseType}
+                editable={false} // Prevent text input
+              />
+              <TouchableOpacity onPress={() => setShowLicenseTypeModal(true)}>
+                <Icon name="caret-down" size={20} color="#999999" />
+              </TouchableOpacity>
+            </InputContainer>
+
+            {/* Experience Input */}
+            <InputContainer>
+              <StyledIconEmail name="briefcase" size={20} color="#999999" />
+              <Input
+                placeholder="Experience"
+                placeholderTextColor="#999999"
+                editable={false} // Prevent text input
+              />
+              <DropdownIconContainer onPress={() => setShowExperienceModal(true)}>
+                <Icon name="caret-down" size={20} color="#999999" />
+              </DropdownIconContainer>
+            </InputContainer>
+
+            <TagsContainer>
+              {experiences.map((experience) => (
+                <Tag key={experience}>
+                  <TagText>{experience}</TagText>
+                  <TagDeleteButton onPress={() => handleExperienceTagDelete(experience)}>
                     <Icon name="times" size={14} color="white" />
                   </TagDeleteButton>
                 </Tag>
               ))}
-          </TagsContainer>
+            </TagsContainer>
 
-          {/* License Type with Tags */}
-          <InputContainer>
-            <StyledIconEmail name="clipboard" size={20} color="#999999" />
-            <Input
-              placeholder="License Type"
-              placeholderTextColor="#999999"
-              keyboardType="default"
-              value={licenseType}
-              editable={false} // Prevent text input
-            />
-            <TouchableOpacity onPress={() => setShowLicenseTypeModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </TouchableOpacity>
-          </InputContainer>
+            {/* Flying Hours Input */}
+            <InputContainer>
+              <StyledIconEmail name="tachometer" size={20} color="#999999" />
+              <Input
+                placeholder="Flying Hours"
+                placeholderTextColor="#999999"
+                keyboardType="numeric"
+                value={flyingHours}
+                onChangeText={setFlyingHours}
+              />
+            </InputContainer>
 
-          {/* Experience Input */}
-          <InputContainer>
-            <StyledIconEmail name="briefcase" size={20} color="#999999" />
-            <Input
-              placeholder="Experience"
-              placeholderTextColor="#999999"
-              editable={false} // Prevent text input
-            />
-            <DropdownIconContainer onPress={() => setShowExperienceModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </DropdownIconContainer>
-          </InputContainer>
+            {/* Register Button */}
+            <GradientButton title={cameFromSettings ? "Save" : "Register"} onPress={handleStep2Press} />
+          </Form>
+        </ScrollView>
 
-          <TagsContainer>
-            {experiences.map((experience) => (
-              <Tag key={experience}>
-                <TagText>{experience}</TagText>
-                <TagDeleteButton onPress={() => handleExperienceTagDelete(experience)}>
-                  <Icon name="times" size={14} color="white" />
-                </TagDeleteButton>
-              </Tag>
-            ))}
-          </TagsContainer>
+        {/* License Modal */}
+        <Modal transparent={true} visible={showLicenseModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={licenseOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => handleLicenseSelect(item)}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowLicenseModal(false)}>
+                <CloseButtonText>Cancel</CloseButtonText>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
 
-          {/* Flying Hours Input */}
-          <InputContainer>
-            <StyledIconEmail name="tachometer" size={20} color="#999999" />
-            <Input
-              placeholder="Flying Hours"
-              placeholderTextColor="#999999"
-              keyboardType="numeric"
-              value={flyingHours}
-              onChangeText={setFlyingHours}
-            />
-          </InputContainer>
+        {/* License Type Modal */}
+        <Modal transparent={true} visible={showLicenseTypeModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={licenseTypeOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => handleLicenseTypeSelect(item)}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowLicenseTypeModal(false)}>
+                <CloseButtonText>Cancel</CloseButtonText>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
 
-          {/* Register Button */}
-          <GradientButton title={cameFromSettings ? "Save" : "Register"} onPress={handleStep2Press} />
-        </Form>
-      </ScrollView>
-
-      {/* License Modal */}
-      <Modal transparent={true} visible={showLicenseModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={licenseOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => handleLicenseSelect(item)}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
-            />
-            <CloseButton onPress={() => setShowLicenseModal(false)}>
-              <CloseButtonText>Cancel</CloseButtonText>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-
-      {/* License Type Modal */}
-      <Modal transparent={true} visible={showLicenseTypeModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={licenseTypeOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => handleLicenseTypeSelect(item)}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
-            />
-            <CloseButton onPress={() => setShowLicenseTypeModal(false)}>
-              <CloseButtonText>Cancel</CloseButtonText>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-
-      {/* Experience Modal */}
-      <Modal transparent={true} visible={showExperienceModal} animationType="slide">
-        <ModalOverlay>
-          <ModalContent>
-            <FlatList
-              data={experienceOptions}
-              renderItem={({ item }) => (
-                <Option onPress={() => handleExperienceSelect(item)}>
-                  <OptionText>{item}</OptionText>
-                </Option>
-              )}
-              keyExtractor={(item) => item}
-            />
-            <CloseButton onPress={() => setShowExperienceModal(false)}>
-              <CloseButtonText>Cancel</CloseButtonText>
-            </CloseButton>
-          </ModalContent>
-        </ModalOverlay>
-      </Modal>
-      {/* Loading Indicator */}
-      {loading && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)", // Dull the background
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 9999, // Ensure the loader is on top of everything else
-          }}
-        >
-          <ActivityIndicator size="large" color="#ffffff" />
-        </View>
-      )}
-    </Container>
+        {/* Experience Modal */}
+        <Modal transparent={true} visible={showExperienceModal} animationType="slide">
+          <ModalOverlay>
+            <ModalContent>
+              <FlatList
+                data={experienceOptions}
+                renderItem={({ item }) => (
+                  <Option onPress={() => handleExperienceSelect(item)}>
+                    <OptionText>{item}</OptionText>
+                  </Option>
+                )}
+                keyExtractor={(item) => item}
+              />
+              <CloseButton onPress={() => setShowExperienceModal(false)}>
+                <CloseButtonText>Cancel</CloseButtonText>
+              </CloseButton>
+            </ModalContent>
+          </ModalOverlay>
+        </Modal>
+        {/* Loading Indicator */}
+        {loading && (
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0, 0, 0, 0.5)", // Dull the background
+              justifyContent: "center",
+              alignItems: "center",
+              zIndex: 9999, // Ensure the loader is on top of everything else
+            }}
+          >
+            <ActivityIndicator size="large" color="#ffffff" />
+          </View>
+        )}
+      </Container>
+    </DismissKeyboardView>
   );
 };
 

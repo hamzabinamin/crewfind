@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal } from "react-native";
+import { FlatList, Dimensions, Text, View, Image, TouchableOpacity, Modal, TouchableWithoutFeedback } from "react-native";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
 import { Menu, Provider as PaperProvider, Portal} from 'react-native-paper';
@@ -9,12 +9,14 @@ import { User } from "../../models/User";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import usePushNotifications from "../../../hooks/usePushNotifications";
 import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
 const screenWidth = Dimensions.get("window").width;
 
 const Home = () => {
+  usePushNotifications(); 
   const [crew, setCrew] = useState<User[]>([]);
   const [originalCrew, setOriginalCrew] = useState<User[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<User | null>(null);
@@ -26,6 +28,7 @@ const Home = () => {
   const [crewModalVisible, setCrewModalVisible] = useState(false);
   const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const menuButtonRef = useRef<View>(null); // ✅ Explicitly type the ref
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -174,80 +177,6 @@ const Home = () => {
   }, []);
   
   useEffect(() => {
-    if (!user) return;
-    const fetchCrew = async () => {
-      try {
-        setLoading(true);
-        const chatIdsStore: { [key: string]: string | null } = {};
-        const crewSnapshot = await getDocs(collection(db, "Users"));
-        const filteredCrewDocs = crewSnapshot.docs.filter((crewDoc) => crewDoc.id !== user.id);
-        const crewData: User[] = await Promise.all(
-          filteredCrewDocs.map(async (crewDoc) => {
-            const crewData = crewDoc.data();
-            console.log("Fetched Crew: ", crewData);
-            const profileImageUrl = crewData.profileImage ? await UtilFunctions.fetchLogoUrl(crewData.profileImage) : "https://via.placeholder.com/60";
-            const backgroundImageUrl = crewData.backgroundImage ? await UtilFunctions.fetchLogoUrl(crewData.backgroundImage) : "https://via.placeholder.com/60";
-  
-            const crewId = crewDoc.id;
-
-            if (user) {
-              const chatQuery = query(
-                collection(db, "Chats"),
-                where("participants", "array-contains", user.id) // User must be in participants
-              );
-
-              const chatSnapshot = await getDocs(chatQuery);
-              chatIdsStore[crewId] = null; // Default to null
-    
-              for (const chatDoc of chatSnapshot.docs) {
-                const chatData = chatDoc.data();
-                if (Array.isArray(chatData.participants) && chatData.participants.includes(crewId)) {
-                  chatIdsStore[crewId] = chatDoc.id; // Store chat ID if found
-                  console.log("chatIdsStore: ", chatIdsStore);
-                  break; // Stop searching once a chat is found
-                }
-              }
-              setChatIds(chatIdsStore);
-            }
-            
-            return {
-              id: crewDoc.id,
-              name: crewData.name,
-              surName: crewData.surName,
-              email: crewData.email,
-              password: "",
-              base: crewData.base,
-              nationality: crewData.nationality,
-              position: crewData.position,
-              companyName: crewData.companyName,
-              age: crewData.age,
-              sex: crewData.sex,
-              relationshipStatus: crewData.relationshipStatus,
-              hobbies: crewData.hobbies,
-              profileImageUrl: profileImageUrl,
-              backgroundImageUrl: backgroundImageUrl,
-              licenses: crewData.licenses,
-              licenseType: crewData.licenseType,
-              experiences: crewData.experiences,
-              flyingHours: crewData.flyingHours,
-              friends: crewData.friends,
-              blocked: crewData.blocked,
-              lastSeen: crewData.lastSeen ? crewData.lastSeen.toDate?.() ?? new Date(crewData.lastSeen) : null,
-              createdAt: new Date(crewData.createdAt),
-              updatedAt: new Date(crewData.updatedAt),
-            };
-          })
-        );
-        setCrew(crewData);
-        setOriginalCrew(crewData);
-        console.log("Chat Ids: ", chatIds);
-      } catch (error) {
-        console.error("Error fetching crew:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
     fetchCrew();
   }, [user]);
 
@@ -262,6 +191,82 @@ const Home = () => {
       eventEmitter.off("openFilter:Home", listener);
     };
   }, []);
+
+  const fetchCrew = async () => {
+    if (!user) return;
+    try {
+      setRefreshing(true);
+      setLoading(true);
+      const chatIdsStore: { [key: string]: string | null } = {};
+      const crewSnapshot = await getDocs(collection(db, "Users"));
+      const filteredCrewDocs = crewSnapshot.docs.filter((crewDoc) => crewDoc.id !== user.id);
+      const crewData: User[] = await Promise.all(
+        filteredCrewDocs.map(async (crewDoc) => {
+          const crewData = crewDoc.data();
+          console.log("Fetched Crew: ", crewData);
+          const profileImageUrl = crewData.profileImage ? await UtilFunctions.fetchLogoUrl(crewData.profileImage) : "https://via.placeholder.com/60";
+          const backgroundImageUrl = crewData.backgroundImage ? await UtilFunctions.fetchLogoUrl(crewData.backgroundImage) : "https://via.placeholder.com/60";
+
+          const crewId = crewDoc.id;
+
+          if (user) {
+            const chatQuery = query(
+              collection(db, "Chats"),
+              where("participants", "array-contains", user.id) // User must be in participants
+            );
+
+            const chatSnapshot = await getDocs(chatQuery);
+            chatIdsStore[crewId] = null; // Default to null
+  
+            for (const chatDoc of chatSnapshot.docs) {
+              const chatData = chatDoc.data();
+              if (Array.isArray(chatData.participants) && chatData.participants.includes(crewId)) {
+                chatIdsStore[crewId] = chatDoc.id; // Store chat ID if found
+                console.log("chatIdsStore: ", chatIdsStore);
+                break; // Stop searching once a chat is found
+              }
+            }
+            setChatIds(chatIdsStore);
+          }
+          
+          return {
+            id: crewDoc.id,
+            name: crewData.name,
+            surName: crewData.surName,
+            email: crewData.email,
+            password: "",
+            base: crewData.base,
+            nationality: crewData.nationality,
+            position: crewData.position,
+            companyName: crewData.companyName,
+            age: crewData.age,
+            sex: crewData.sex,
+            relationshipStatus: crewData.relationshipStatus,
+            hobbies: crewData.hobbies,
+            profileImageUrl: profileImageUrl,
+            backgroundImageUrl: backgroundImageUrl,
+            licenses: crewData.licenses,
+            licenseType: crewData.licenseType,
+            experiences: crewData.experiences,
+            flyingHours: crewData.flyingHours,
+            friends: crewData.friends,
+            blocked: crewData.blocked,
+            lastSeen: crewData.lastSeen ? crewData.lastSeen.toDate?.() ?? new Date(crewData.lastSeen) : null,
+            createdAt: new Date(crewData.createdAt),
+            updatedAt: new Date(crewData.updatedAt),
+          };
+        })
+      );
+      setCrew(crewData);
+      setOriginalCrew(crewData);
+      console.log("Chat Ids: ", chatIds);
+    } catch (error) {
+      console.error("Error fetching crew:", error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
 
   type CrewFilter = {
     position: string | null;
@@ -359,6 +364,8 @@ const Home = () => {
       renderItem={renderItem}
       keyExtractor={(item) => item.id}
       contentContainerStyle={{ paddingBottom: 20 }}
+      refreshing={refreshing}
+      onRefresh={fetchCrew}
     />
     {/* Menu moved outside of the Modal */}
     <Modal animationType="slide" transparent visible={modalVisible}>
@@ -445,104 +452,108 @@ const Home = () => {
         animationType="slide"
         onRequestClose={() => setCrewModalVisible(false)}
       >
-        <ModalOverlay>
-          <ModalBox>
-            <HeadingText>Filter Options</HeadingText>
+        <TouchableWithoutFeedback onPress={() => setCrewModalVisible(false)}>
+          <ModalOverlay>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <ModalBox>
+                <HeadingText>Filter Options</HeadingText>
 
-            {/* All - Reset Filters */}
-            <TouchableOpacity
-              onPress={() => {
-                const reset = {
-                  position: null,
-                  friendsOnly: false,
-                  sex: null,
-                  relationshipStatus: null,
-                };
-                resetFilters();
-                setSelectedOption("All");
-                applyCrewFilter(reset);
-                setCrewModalVisible(false);
-              }}
-              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-            >
-              <RadioCircle selected={selectedOption === "All"} />
-              <OptionText>All</OptionText>
-            </TouchableOpacity>
+                {/* All - Reset Filters */}
+                <TouchableOpacity
+                  onPress={() => {
+                    const reset = {
+                      position: null,
+                      friendsOnly: false,
+                      sex: null,
+                      relationshipStatus: null,
+                    };
+                    resetFilters();
+                    setSelectedOption("All");
+                    applyCrewFilter(reset);
+                    setCrewModalVisible(false);
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                >
+                  <RadioCircle selected={selectedOption === "All"} />
+                  <OptionText>All</OptionText>
+                </TouchableOpacity>
 
-            {/* Position Section */}
-            <SectionHeading>Position</SectionHeading>
-            {["Pilot", "Cabin Crew"].map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => {
-                  const newFilters = { ...filters, position: option as "Pilot" | "Cabin Crew" };
-                  setFilters(newFilters);
-                  setSelectedOption(option);
-                  applyCrewFilter(newFilters);
-                  setCrewModalVisible(false);
-                }}
-                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-              >
-                <RadioCircle selected={filters.position === option} />
-                <OptionText>{option}</OptionText>
-              </TouchableOpacity>
-            ))}
+                {/* Position Section */}
+                <SectionHeading>Position</SectionHeading>
+                {["Pilot", "Cabin Crew"].map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => {
+                      const newFilters = { ...filters, position: option as "Pilot" | "Cabin Crew" };
+                      setFilters(newFilters);
+                      setSelectedOption(option);
+                      applyCrewFilter(newFilters);
+                      setCrewModalVisible(false);
+                    }}
+                    style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                  >
+                    <RadioCircle selected={filters.position === option} />
+                    <OptionText>{option}</OptionText>
+                  </TouchableOpacity>
+                ))}
 
-            {/* Friends Only */}
-            <SectionHeading>Friends Only</SectionHeading>
-            <TouchableOpacity
-              onPress={() => {
-                const newFilters = { ...filters, friendsOnly: !filters.friendsOnly };
-                setFilters(newFilters);
-                setSelectedOption("Friends Only");
-                applyCrewFilter(newFilters);
-                setCrewModalVisible(false);
-              }}
-              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-            >
-              <RadioCircle selected={filters.friendsOnly === true} />
-              <OptionText>Friends Only</OptionText>
-            </TouchableOpacity>
+                {/* Friends Only */}
+                <SectionHeading>Friends Only</SectionHeading>
+                <TouchableOpacity
+                  onPress={() => {
+                    const newFilters = { ...filters, friendsOnly: !filters.friendsOnly };
+                    setFilters(newFilters);
+                    setSelectedOption("Friends Only");
+                    applyCrewFilter(newFilters);
+                    setCrewModalVisible(false);
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                >
+                  <RadioCircle selected={filters.friendsOnly === true} />
+                  <OptionText>Friends Only</OptionText>
+                </TouchableOpacity>
 
-            {/* Sex Section */}
-            <SectionHeading>Sex</SectionHeading>
-            {["Male", "Female"].map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => {
-                  const newFilters = { ...filters, sex: option as "Male" | "Female" };
-                  setFilters(newFilters);
-                  setSelectedOption(option);
-                  applyCrewFilter(newFilters);
-                  setCrewModalVisible(false);
-                }}
-                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-              >
-                <RadioCircle selected={filters.sex === option} />
-                <OptionText>{option}</OptionText>
-              </TouchableOpacity>
-            ))}
+                {/* Sex Section */}
+                <SectionHeading>Sex</SectionHeading>
+                {["Male", "Female"].map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => {
+                      const newFilters = { ...filters, sex: option as "Male" | "Female" };
+                      setFilters(newFilters);
+                      setSelectedOption(option);
+                      applyCrewFilter(newFilters);
+                      setCrewModalVisible(false);
+                    }}
+                    style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                  >
+                    <RadioCircle selected={filters.sex === option} />
+                    <OptionText>{option}</OptionText>
+                  </TouchableOpacity>
+                ))}
 
-            {/* Relationship Status */}
-            <SectionHeading>Relationship Status</SectionHeading>
-            {["Single", "Married", "Unspecified"].map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => {
-                  const newFilters = { ...filters, relationshipStatus: option as "Single" | "Married" | "Unspecified" };
-                  setFilters(newFilters);
-                  setSelectedOption(option);
-                  applyCrewFilter(newFilters);
-                  setCrewModalVisible(false);
-                }}
-                style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-              >
-                <RadioCircle selected={filters.relationshipStatus === option} />
-                <OptionText>{option}</OptionText>
-              </TouchableOpacity>
-            ))}
-          </ModalBox>
-        </ModalOverlay>
+                {/* Relationship Status */}
+                <SectionHeading>Relationship Status</SectionHeading>
+                {["Single", "Married", "Unspecified"].map((option) => (
+                  <TouchableOpacity
+                    key={option}
+                    onPress={() => {
+                      const newFilters = { ...filters, relationshipStatus: option as "Single" | "Married" | "Unspecified" };
+                      setFilters(newFilters);
+                      setSelectedOption(option);
+                      applyCrewFilter(newFilters);
+                      setCrewModalVisible(false);
+                    }}
+                    style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                  >
+                    <RadioCircle selected={filters.relationshipStatus === option} />
+                    <OptionText>{option}</OptionText>
+                  </TouchableOpacity>
+                ))}
+              </ModalBox>
+            </TouchableWithoutFeedback>
+          </ModalOverlay>
+        </TouchableWithoutFeedback>
       </Modal>
     </Container>
   );

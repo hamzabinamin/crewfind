@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../../../FirebaseConfig";
@@ -192,70 +193,72 @@ const Register2 = () => {
   };
 
   return (
-    <Container>
-      {loading && <LoadingIndicator />}
-      <ImageContainer>
-        <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-        <Overlay />
-      </ImageContainer>
-      <HeadingText>
-      {cameFromSettings ? (
-        <>
-         Profile <BlueText>Management</BlueText>
-      </>
-      ) : (
-        <>
-        Create an <BlueText>Account!</BlueText>
-      </>
-      )}
-      </HeadingText>
-      <Form>
-        {/* Profile Image Upload */}
-        <InputContainer>
-          <StyledIconEmail name="user-circle" size={20} color="#999999" />
-          <Input placeholder="Profile Image" placeholderTextColor="#999999" editable={false} />
-          <TouchableOpacity onPress={() => openImagePicker("profile")}>
-            {profileImage ? (
-              <Thumbnail source={{ uri: profileImage.uri }} />
-            ) : (
-              <StyledIconEmail name="upload" size={20} color="#999999" />
-            )}
-          </TouchableOpacity>
-        </InputContainer>
+    <DismissKeyboardView>
+      <Container>
+        {loading && <LoadingIndicator />}
+        <ImageContainer>
+          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
+          <Overlay />
+        </ImageContainer>
+        <HeadingText>
+        {cameFromSettings ? (
+          <>
+          Profile <BlueText>Management</BlueText>
+        </>
+        ) : (
+          <>
+          Create an <BlueText>Account!</BlueText>
+        </>
+        )}
+        </HeadingText>
+        <Form>
+          {/* Profile Image Upload */}
+          <InputContainer>
+            <StyledIconEmail name="user-circle" size={20} color="#999999" />
+            <Input placeholder="Profile Image" placeholderTextColor="#999999" editable={false} />
+            <TouchableOpacity onPress={() => openImagePicker("profile")}>
+              {profileImage ? (
+                <Thumbnail source={{ uri: profileImage.uri }} />
+              ) : (
+                <StyledIconEmail name="upload" size={20} color="#999999" />
+              )}
+            </TouchableOpacity>
+          </InputContainer>
 
-        {/* Profile Background Upload */}
-        <InputContainer>
-          <StyledIconEmail name="image" size={20} color="#999999" />
-          <Input placeholder="Profile Background" placeholderTextColor="#999999" editable={false} />
-          <TouchableOpacity onPress={() => openImagePicker("background")}>
-            {backgroundImage ? (
-              <Thumbnail source={{ uri: backgroundImage.uri }} />
-            ) : (
-              <StyledIconEmail name="upload" size={20} color="#999999" />
-            )}
-          </TouchableOpacity>
-        </InputContainer>
+          {/* Profile Background Upload */}
+          <InputContainer>
+            <StyledIconEmail name="image" size={20} color="#999999" />
+            <Input placeholder="Profile Background" placeholderTextColor="#999999" editable={false} />
+            <TouchableOpacity onPress={() => openImagePicker("background")}>
+              {backgroundImage ? (
+                <Thumbnail source={{ uri: backgroundImage.uri }} />
+              ) : (
+                <StyledIconEmail name="upload" size={20} color="#999999" />
+              )}
+            </TouchableOpacity>
+          </InputContainer>
 
-        {cameFromSettings ? ( <GradientButton title="Save" onPress={handleStep3Press} /> ) : (
-          <GradientButtonWithArrow title="Step 3 of 3" onPress={handleStep3Press} /> )}
-      </Form>
+          {cameFromSettings ? ( <GradientButton title="Save" onPress={handleStep3Press} /> ) : (
+            <GradientButtonWithArrow title="Step 3 of 3" onPress={handleStep3Press} /> )}
+        </Form>
 
-      {/* Modal for Camera or Gallery Selection */}
-      <Modal transparent={true} visible={showModal} animationType="slide">
-        <ModalOverlay />
-        <ModalContent>
-          <ModalOption onPress={() => pickImage("camera")}>
-            <OptionText>Camera</OptionText>
-          </ModalOption>
-          <ModalOption onPress={() => pickImage("gallery")}>
-            <OptionText>Gallery</OptionText>
-          </ModalOption>
-          <CloseButton onPress={() => setShowModal(false)}>
-            <Text style={{ color: "#fff" }}>Cancel</Text>
-          </CloseButton>
-        </ModalContent>
-      </Modal>
-    </Container>
+        {/* Modal for Camera or Gallery Selection */}
+        <Modal transparent={true} visible={showModal} animationType="slide">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalOption onPress={() => pickImage("camera")}>
+              <OptionText>Camera</OptionText>
+            </ModalOption>
+            <ModalOption onPress={() => pickImage("gallery")}>
+              <OptionText>Gallery</OptionText>
+            </ModalOption>
+            <CloseButton onPress={() => setShowModal(false)}>
+              <Text style={{ color: "#fff" }}>Cancel</Text>
+            </CloseButton>
+          </ModalContent>
+        </Modal>
+      </Container>
+    </DismissKeyboardView>
   );
 };
 

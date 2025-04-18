@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FlatList, View, Text, Image, TouchableOpacity, Modal, Pressable } from "react-native";
+import { FlatList, View, Text, Image, TouchableOpacity, Modal, TouchableWithoutFeedback } from "react-native";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
 import GradientButton from '../../utilities/GradientButton';
@@ -25,6 +25,7 @@ const Jobs = () => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [selectedOption, setSelectedOption] = useState("All");
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   const openModal = (jobPost: JobPost) => {
@@ -49,76 +50,6 @@ const Jobs = () => {
   }, []);
 
   useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        const jobsSnapshot = await getDocs(collection(db, "JobPosts"));
-        const jobsData: JobPost[] = await Promise.all(
-          jobsSnapshot.docs.map(async (jobDoc) => {
-            const jobData = jobDoc.data();
-            const airlineID = jobData.airlineID;
-            console.log("Fetched Jobs: ", jobData);
-  
-            let airlineData: Airline;
-  
-            if (airlineID) {
-              // Fetch airline details
-              const airlineRef = doc(db, "Airlines", airlineID);
-              const airlineSnap = await getDoc(airlineRef);
-  
-              if (airlineSnap.exists()) {
-                const data = airlineSnap.data();
-                console.log("Airline data: ", data);
-
-                const logoUrl = data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://via.placeholder.com/60";
-
-                airlineData = {
-                  id: airlineSnap.id,
-                  name: data.name || "Unknown Airline",
-                  logoImageUrl: logoUrl,
-                  createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-                  updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
-                };
-              } else {
-                airlineData = {
-                  id: airlineID,
-                  name: "Unknown Airline",
-                  logoImageUrl: "https://via.placeholder.com/60",
-                  createdAt: new Date(),
-                  updatedAt: new Date(),
-                };
-              }
-            } else {
-              airlineData = {
-                id: "unknown",
-                name: "Unknown Airline",
-                logoImageUrl: "https://via.placeholder.com/60",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              };
-            }
-  
-            return {
-              id: jobDoc.id,
-              title: jobData.title,
-              base: jobData.base,
-              jobFor: jobData.jobFor || "N/A",
-              airline: airlineData,
-              createdAt: new Date(jobData.createdAt),
-              updatedAt: new Date(jobData.updatedAt),
-            };
-          })
-        );
-  
-        setJobs(jobsData);
-        setOriginalJobs(jobsData);
-      } catch (error) {
-        console.error("Error fetching jobs:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-  
     fetchJobs();
   }, []);
 
@@ -135,8 +66,79 @@ const Jobs = () => {
       eventEmitter.off("openFilter:Jobs", listener);
     };
   }, []);
-  
 
+  const fetchJobs = async () => {
+    try {
+      setRefreshing(true);
+      setLoading(true);
+      const jobsSnapshot = await getDocs(collection(db, "JobPosts"));
+      const jobsData: JobPost[] = await Promise.all(
+        jobsSnapshot.docs.map(async (jobDoc) => {
+          const jobData = jobDoc.data();
+          const airlineID = jobData.airlineID;
+          console.log("Fetched Jobs: ", jobData);
+
+          let airlineData: Airline;
+
+          if (airlineID) {
+            // Fetch airline details
+            const airlineRef = doc(db, "Airlines", airlineID);
+            const airlineSnap = await getDoc(airlineRef);
+
+            if (airlineSnap.exists()) {
+              const data = airlineSnap.data();
+              console.log("Airline data: ", data);
+
+              const logoUrl = data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://via.placeholder.com/60";
+
+              airlineData = {
+                id: airlineSnap.id,
+                name: data.name || "Unknown Airline",
+                logoImageUrl: logoUrl,
+                createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+                updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+              };
+            } else {
+              airlineData = {
+                id: airlineID,
+                name: "Unknown Airline",
+                logoImageUrl: "https://via.placeholder.com/60",
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+            }
+          } else {
+            airlineData = {
+              id: "unknown",
+              name: "Unknown Airline",
+              logoImageUrl: "https://via.placeholder.com/60",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+          }
+
+          return {
+            id: jobDoc.id,
+            title: jobData.title,
+            base: jobData.base,
+            jobFor: jobData.jobFor || "N/A",
+            airline: airlineData,
+            createdAt: new Date(jobData.createdAt),
+            updatedAt: new Date(jobData.updatedAt),
+          };
+        })
+      );
+
+      setJobs(jobsData);
+      setOriginalJobs(jobsData);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
+  
   const applyJobFilter = (option: string) => {
     console.log("Filtering jobs for:", option);
   
@@ -193,6 +195,8 @@ const Jobs = () => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
+        refreshing={refreshing}
+        onRefresh={fetchJobs}
       />
       )}
       <Modal animationType="slide" transparent visible={modalVisible}>
@@ -242,27 +246,31 @@ const Jobs = () => {
         transparent
         animationType="slide"
         onRequestClose={() => setFilterModalVisible(false)}>
-        <ModalOverlay>
-          <ModalBox>
-            <HeadingText>Filter Options</HeadingText>
+        <TouchableWithoutFeedback onPress={() => setFilterModalVisible(false)}>
+          <ModalOverlay>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <ModalBox>
+                <HeadingText>Filter Options</HeadingText>
 
-            {["All", "Exclude my Country", "Pilot", "Cabin Crew"].map((option) => (
-            <TouchableOpacity
-              key={option}
-              onPress={() => {
-                setSelectedOption(option);
-                console.log("Selected Filter:", option);
-                setFilterModalVisible(false);
-                applyJobFilter(option); 
-              }}
-              style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
-            >
-              <RadioCircle selected={selectedOption === option} />
-              <OptionText>{option}</OptionText>
-            </TouchableOpacity>
-            ))}
-          </ModalBox>
-        </ModalOverlay>
+                {["All", "Exclude my Country", "Pilot", "Cabin Crew"].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => {
+                    setSelectedOption(option);
+                    console.log("Selected Filter:", option);
+                    setFilterModalVisible(false);
+                    applyJobFilter(option); 
+                  }}
+                  style={{ flexDirection: "row", alignItems: "center", marginVertical: 10 }}
+                >
+                  <RadioCircle selected={selectedOption === option} />
+                  <OptionText>{option}</OptionText>
+                </TouchableOpacity>
+                ))}
+              </ModalBox>
+            </TouchableWithoutFeedback>
+          </ModalOverlay>
+        </TouchableWithoutFeedback>
       </Modal>
     </Container>
   );
