@@ -1,41 +1,60 @@
-import { useEffect, useState } from "react";
-import { useRouter, useRootNavigationState } from "expo-router";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
-import LoadingIndicator from "./utilities/LoadingIndicator";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "expo-router";
+import { View, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
+import { getAuth, onAuthStateChanged, User } from "firebase/auth";
+import { Video, ResizeMode } from "expo-av";
+import type { AVPlaybackStatus } from "expo-av";
 
 export default function Index() {
   const router = useRouter();
-  const navigationState = useRootNavigationState();
-  const [loading, setLoading] = useState(false);
+  const videoRef = useRef<Video>(null);
+  const [videoFinished, setVideoFinished] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
+  // Step 1: After video finishes, then check auth state
   useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log("User state changed:", user); // Debug output
-      if (user) {
-        console.log("Going to home screen");
-        router.replace("/(drawer)/(tabs)/Home");
-      } 
-      else {
+    if (videoFinished) {
+      const auth = getAuth();
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        setCurrentUser(user);
+        setAuthChecked(true);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [videoFinished]);
+
+  // Step 2: After both video and auth check complete, navigate
+  useEffect(() => {
+    if (videoFinished && authChecked) {
+      if (currentUser) {
+        router.replace("/(drawer)/(tabs)/CrewFind");
+      } else {
         router.replace("/screens/auth/Login");
       }
-    });
-
-    return () => unsubscribe();
-  }, [router]);
-
- /* useEffect(() => {
-    if (navigationState?.key) {
-      // Redirect to the Login screen once the Root Layout is ready
-      router.replace("/screens/auth/Login");
     }
-  }, [navigationState, router]); */
+  }, [videoFinished, authChecked, currentUser]);
 
   return (
     <View style={styles.container}>
-      {/* Loader while waiting */}
-      <ActivityIndicator size="large" color="#5DCBCF" />
+      {!videoFinished ? (
+        <Video
+          ref={videoRef}
+          source={require("../assets/animation/startup.mp4")}
+          style={styles.video}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping={false}
+          onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
+            if (status.isLoaded && status.didJustFinish) {
+              setVideoFinished(true);
+            }
+          }}
+        />
+      ) : (
+        <ActivityIndicator size="large" color="#5DCBCF" />
+      )}
     </View>
   );
 }
@@ -43,8 +62,11 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#000",
+  },
+  video: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height,
+    position: "absolute",
   },
 });

@@ -1,38 +1,33 @@
-import { View, Text, Button, TouchableOpacity, AppState, AppStateStatus } from "react-native";
+import { View, Text, Button, TouchableOpacity, AppState, AppStateStatus, StyleSheet } from "react-native";
 import React, { useEffect, useRef } from "react";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
-import { getAuth } from "firebase/auth";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../FirebaseConfig"; 
+import UtilFunctions from "@/app/utilities/UtilFunctions";
 
 export default function _layout() {
+
+  const customHeaderStyle = StyleSheet.create({
+  header: {
+    backgroundColor: "#ffffff",         // Required to make border visible
+    borderBottomWidth: 1,              // The actual bottom border
+    borderBottomColor: "#dcdcdc",      // Light grey border color
+    elevation: 0,                      // Removes shadow on Android
+    shadowOpacity: 0,      
+  },
+});
 
   const appState = useRef(AppState.currentState);
 
   // Update the "lastSeen" timestamp when the app comes to the foreground
-  const updateLastSeen = async () => {
-    const user = getAuth().currentUser;
-    if (user) {
-      const userRef = doc(db, "Users", user.uid);
-      try {
-        await updateDoc(userRef, {
-          lastSeen: serverTimestamp(),
-        });
-        console.log("Last seen updated");
-      } catch (error) {
-        console.error("Error updating last seen:", error);
-      }
-    }
-  };
+
 
   useEffect(() => {
     // Initial last seen update when the app is loaded
-    updateLastSeen();
+    UtilFunctions.updateLastSeen();
 
     const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === "active") {
-        updateLastSeen(); // When the app resumes
+        UtilFunctions.updateLastSeen(); // When the app resumes
       }
       appState.current = nextAppState;
     });
@@ -46,6 +41,7 @@ export default function _layout() {
   return (
     <Stack>
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="screens/auth/Login" options={{ headerShown: false }} />
       <Stack.Screen
         name="screens/auth/ForgotPassword"
@@ -54,7 +50,7 @@ export default function _layout() {
           headerTransparent: true,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#fff" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
         }}
@@ -62,11 +58,17 @@ export default function _layout() {
       <Stack.Screen
         name="screens/auth/Register"
         options={{
-          headerTitle: "",
-          headerTransparent: true,
+          headerTitle: "Create Account",
+          headerTransparent: false,
+          headerTitleStyle: {
+            color: "#1c1c88", // ← This changes the title text color
+            fontWeight: "bold",
+            fontSize: 18,
+          },
+         // headerStyle: customHeaderStyle.header as any,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#fff" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
         }}
@@ -74,11 +76,16 @@ export default function _layout() {
       <Stack.Screen
         name="screens/auth/Register1"
         options={{
-          headerTitle: "",
-          headerTransparent: true,
+          headerTitle: "Create Account",
+          headerTransparent: false,
+          headerTitleStyle: {
+            color: "#1c1c88", // ← This changes the title text color
+            fontWeight: "bold",
+            fontSize: 18,
+          },
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#fff" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
         }}
@@ -86,11 +93,16 @@ export default function _layout() {
        <Stack.Screen
         name="screens/auth/Register2"
         options={{
-          headerTitle: "",
-          headerTransparent: true,
+          headerTitle: "Create Account",
+          headerTransparent: false,
+          headerTitleStyle: {
+            color: "#1c1c88", // ← This changes the title text color
+            fontWeight: "bold",
+            fontSize: 18,
+          },
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#fff" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
         }}
@@ -98,13 +110,31 @@ export default function _layout() {
       <Stack.Screen
         name="screens/auth/Register3"
         options={{
-          headerTitle: "",
-          headerTransparent: true,
+          headerTitle: "Create Account",
+          headerTransparent: false,
+          headerTitleStyle: {
+            color: "#1c1c88", // ← This changes the title text color
+            fontWeight: "bold",
+            fontSize: 18,
+          },
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#fff" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
+        }}
+      />
+      <Stack.Screen
+        name="screens/auth/VerifyEmail"
+        options={{
+          headerTitle: "Verify Email",
+          headerTransparent: false,
+          headerTitleStyle: {
+            color: "#1c1c88", // ← This changes the title text color
+            fontWeight: "bold",
+            fontSize: 18,
+          },
+          headerBackVisible: false,
         }}
       />
       <Stack.Screen
@@ -112,12 +142,12 @@ export default function _layout() {
         options={{
           headerTitle: "Messages",
           headerTitleStyle: {
-            color: "#5DCBCF",
+            color: "#000",
           },
-          headerTransparent: true,
+          headerTransparent: false,
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#5DCBCF" />
+              <Icon name="chevron-left" size={20} color="#1c1c88" />
             </TouchableOpacity>
           ),
         }}

@@ -9,7 +9,7 @@ const LoadingIndicator = () => {
     >
       <View style={styles.overlay}>
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#097054" />
+          <ActivityIndicator size="large" color="#1c1c88" />
         </View>
       </View>
     </Modal>

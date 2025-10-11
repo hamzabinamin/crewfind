@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { StyleSheet, View } from "react-native";
+import { useRouter } from 'expo-router';
 import { StatusBar } from "expo-status-bar";
 import * as Notifications from 'expo-notifications';
 import Login from "./app/screens/auth/Login";
@@ -9,17 +10,39 @@ import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const auth = getAuth();
 
-// ✅ Set how notifications are handled when received in foreground
+// 🔁 Track currently open chat
+let currentOpenChatId: string | null = null;
+
+export function setCurrentOpenChatId(chatId: string | null) {
+  currentOpenChatId = chatId;
+}
+
+// ✅ Enhanced notification handler
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true, // Feel free to keep this false if you prefer
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    console.log("Inside handleNotification");
+    const chatId = notification.request.content.data?.chatId;
+
+    if (chatId && chatId === currentOpenChatId) {
+      console.log("🔕 Suppressing notification for currently open chat:", chatId);
+      return {
+        shouldShowAlert: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 export default function App() {
   console.log("Inside App.tsx");
+  const router = useRouter();
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
 
@@ -33,8 +56,7 @@ export default function App() {
         if (token) {
           console.log("Saving expo token");
           await saveExpoPushToken(user.uid, token);
-        }
-        else {
+        } else {
           console.log("Not saving expo token");
         }
       }
@@ -48,7 +70,15 @@ export default function App() {
     // ✅ Listener for when a user taps on a notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log("🔔 Notification tapped:", response);
-      // Optional: Navigate based on notification content
+      
+      const data = response.notification.request.content.data;
+      console.log("🔔 Notification data:", data);
+      // ✅ Check if this is a chat notification
+      if (data?.type === "chat" && data?.chatId) {
+        console.log("Navigating to chat:", data.chatId);
+        router.push({ pathname: "../../screens/MessageDetail", params: { chatId: data.chatId, otherParticipantName: data.senderName ?? "", otherParticipantImage: encodeURIComponent(data.senderProfileImage ?? "") } });
+      }
+
     });
 
     // ✅ Cleanup on unmount

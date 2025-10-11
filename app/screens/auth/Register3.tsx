@@ -1,62 +1,53 @@
-import { View, Dimensions, Modal, FlatList, Alert, ActivityIndicator, TouchableOpacity, ScrollView } from "react-native";
 import React, { useState, useEffect } from "react";
-import styled from 'styled-components/native';
-import GradientButton from "../../utilities/GradientButton";
-import Icon from 'react-native-vector-icons/FontAwesome';
-import { getStorage, ref, uploadBytesResumable } from "firebase/storage";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import {
+  Dimensions,
+  Alert,
+  Modal,
+  Text,
+  Platform,
+  TouchableOpacity,
+  View,
+  ScrollView
+} from "react-native";
+import styled from "styled-components/native";
+import Icon from "react-native-vector-icons/FontAwesome";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import FastImage from "react-native-fast-image";
+import DismissKeyboardView from "../../../components/DismissKeyboardView";
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import { ref, getStorage, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db, storage } from "../../../FirebaseConfig";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import DismissKeyboardView from '../../../components/DismissKeyboardView';
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { getFirestore, setDoc, doc, getDoc, updateDoc } from "firebase/firestore";
-import { auth, db } from '../../../FirebaseConfig'
-
-const screenWidth = Dimensions.get('window').width;
 
 const Register3 = () => {
   const router = useRouter();
+  const navigation = useNavigation(); 
   const params = useLocalSearchParams();
   const userString = typeof params.user === "string" ? params.user : null;
   const [user, setUser] = useState<User>(userString ? JSON.parse(userString) : {});
-  const cameFromSettings = params.cameFromSettings === "true";
-  console.log("Params Register3", params);
-  console.log("cameFromSettings", cameFromSettings);
-  console.log("Received User: ", user);
-
-  const [licenses, setLicenses] = useState<string[]>([]); // License input field
-  const [licenseType, setLicenseType] = useState(""); // Store selected license types
-  const [experiences, setExperiences] = useState<string[]>([]);
-  const [flyingHours, setFlyingHours] = useState(""); // Flying hours field
-  const [showLicenseModal, setShowLicenseModal] = useState(false); // Show License modal flag
-  const [showLicenseTypeModal, setShowLicenseTypeModal] = useState(false); // Show License Type modal flag
-  const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const firestore = getFirestore(); // Firestore instance
-  const storage = getStorage(); // Firebase Storage instance
+  const [profileImage, setProfileImage] = useState<{ uri: string } | null>(null);
+  const [backgroundImage, setBackgroundImage] = useState<{ uri: string } | null>(null);
+  const [profileImageChanged, setProfileImageChanged] = useState(false);
+  const [backgroundImageChanged, setBackgroundImageChanged] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [imageType, setImageType] = useState<"profile" | "background" | null>(null);
+  const isFromSettings = params.cameFromSettings === "true";
+  const isFromLogin = params.cameFromLogin === "true";
 
-  const licenseOptions = [
-    "ICAO", "FAA", "EASA", "Transport Canada", "DGCA", "ANAC", "CASA", "JAA"
-  ];
-
-  const licenseTypeOptions = [
-    "Airline", "Commercial", "Private", "Cabin Crew"
-  ];
-
-  const experienceOptions = [
-    "Boeing Widebody", "Airbus Widebody", "Boeing Narrowbody", "Airbus Narrowbody", 
-    "Single Piston", "Multi Piston", "Single Turbine", "Multi Turbine", 
-    "Corporate Jets < 20 Tons", "Corporate Jets > 20 Tons", "Military Jets"
-  ];
+  const firestore = getFirestore();
 
   useEffect(() => {
-    console.log("Inside Register's useEffect");
     const fetchUserFromStorage = async () => {
       const storedUser = await UtilFunctions.getUser();
-      console.log("Stored User: ", storedUser);
-      if (storedUser) {
+      if (storedUser && (isFromSettings || isFromLogin)) {
+        console.log("Stored Profile Image: ", storedUser.profileImage);
+        console.log("Stored Background Image: ", storedUser.backgroundImage); 
         setUser(storedUser);
         updateFieldsForEdit(storedUser);
       }
@@ -64,305 +55,302 @@ const Register3 = () => {
     fetchUserFromStorage();
   }, []);
 
-  const updateFieldsForEdit = (user: User) => {
-    setLicenses(user.licenses);
-    setLicenseType(user.licenseType);
-    setExperiences(user.experiences);
-    setFlyingHours(user.flyingHours ? String(user.flyingHours) : "");
-  };
-  
-  const handleStep2Press = async () => {
-    // Validation
-    if(licenses.length === 0) {
-      Alert.alert("Validation Error", "Please select at least one license.");
-      return;
-    }
-
-    if(licenseType.length === 0) {
-      Alert.alert("Validation Error", "Please select at least one license type.");
-      return;
-    }
-
-    if(experiences.length === 0) {
-      Alert.alert("Validation Error", "Please enter at least one experience.");
-      return;
-    }
-
-    if(!flyingHours || isNaN(parseInt(flyingHours))) {
-      Alert.alert("Validation Error", "Please enter valid flying hours.");
-      return;
-    }
-
-    const parsedFlyingHours = typeof flyingHours === "string" ? parseInt(flyingHours) : flyingHours;
-
-    if(user) {
-      const updatedUser = {
-        ...user,
-        licenses: licenses,
-        licenseType: licenseType,
-        experiences: experiences,
-        flyingHours: parsedFlyingHours, // Ensure flyingHours is a number
-      };
-      console.log("User before saving: ", updatedUser);
-      if(cameFromSettings) {
-        try {
-          setLoading(true);
-          if (user?.id) {
-            const userRef = doc(db, "Users", user.id);
-            await updateDoc(userRef, {
-              licenses,
-              licenseType,
-              experiences,
-              flyingHours: parsedFlyingHours
-            });
-            UtilFunctions.saveUser(updatedUser);
-          }
-        } catch (error) {
-          console.error("Error updating profile:", error);
-          Alert.alert("Error", "Failed to update profile. Please try again.");
-          return;
-        }
-        finally {
-          setLoading(false);
-        } 
+  useEffect(() => {
+    const requestPermissions = async () => {
+      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+      const { status: galleryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (cameraStatus !== "granted" || galleryStatus !== "granted") {
+        Alert.alert("Permission Denied", "You need to grant camera and gallery permissions.");
       }
-      else {
-        try {
-          setLoading(true);
-          const userCredential = await createUserWithEmailAndPassword(auth, updatedUser.email, updatedUser.password);
-          const createdUser = userCredential.user;
+    };
+    requestPermissions();
+  }, []);
+
+  useEffect(() => {
+    let headerTitle = "Create Account";
+
+    if (isFromLogin) {
+      headerTitle = "Complete Your Profile";
+    }
+    else if (isFromSettings) {
+      headerTitle = "Profile Management";
+    }
+    navigation.setOptions({
+      headerTitle: headerTitle
+    });
+  }, [navigation, isFromSettings, isFromLogin]);
+
+  const updateFieldsForEdit = (user: User) => {
+    setProfileImage(user.profileImage ? { uri: user.profileImage } : null);
+    setBackgroundImage(user.backgroundImage ? { uri: user.backgroundImage } : null);
+  };
+
+  const pickImage = async (type: "camera" | "gallery") => {
+    let result;
+    if (type === "camera") {
+      result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 1 });
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [4, 3], quality: 1 });
+    }
+
+    if (result && !result.canceled && result.assets && result.assets.length > 0) {
+      const selectedImage = { uri: result.assets[0].uri };
+      if (imageType === "profile") {
+        setProfileImage(selectedImage);
+        setProfileImageChanged(true);
+        setUser((prevUser: User) => ({ ...prevUser, profileImageObject: selectedImage.uri }));
+      } else if (imageType === "background") {
+        setBackgroundImage(selectedImage);
+        setBackgroundImageChanged(true);
+        setUser((prevUser: User) => ({ ...prevUser, backgroundImageObject: selectedImage.uri }));
+      }
+    }
+    setShowModal(false);
+  };
+
+  const uploadNewImage = async (uri: string, type: "profileImage" | "backgroundImage") => {
+    const timestamp = Date.now();
+    const blob = await (await fetch(uri)).blob();
+    const fileName = `${timestamp}-${user.id}-${type}.jpg`;
+    const imageRef = ref(storage, `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`);
+    await uploadBytes(imageRef, blob);
+    return await getDownloadURL(imageRef);
+  };
+
+  const handleCompleteRegistration = async () => {
+    if (!profileImage || !backgroundImage) {
+      Alert.alert("Validation Error", "Both images are required.");
+      return;
+    }
     
-          if(!createdUser) {
+    if (isFromSettings) {
+      try {
+        if (!user.id) throw new Error("User id is required.");
+        setLoading(true);
+        const userRef = doc(db, "Users", user.id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const deleteOldImage = async (url: string) => {
+            if (url) {
+              try {
+                await deleteObject(ref(storage, url));
+              } catch (error) {
+                console.error("Error deleting old image:", error);
+              }
+            }
+          };
+          const updatedData: Partial<User> = {};
+          if (profileImageChanged) {
+            await deleteOldImage(userData.profileImage);
+            updatedData.profileImage = await uploadNewImage(profileImage!.uri, "profileImage");
+          }
+          if (backgroundImageChanged) {
+            await deleteOldImage(userData.backgroundImage);
+            updatedData.backgroundImage = await uploadNewImage(backgroundImage!.uri, "backgroundImage");
+          }
+          if (Object.keys(updatedData).length > 0) {
+            await updateDoc(userRef, updatedData);
+            const updatedUser = { ...user, ...updatedData };
+            await UtilFunctions.saveUser(updatedUser);
+
+            Alert.alert("Success", "Profile updated successfully!");
+          }
+        }
+      } catch (e) {
+        Alert.alert("Error", "Could not update images.");
+      } finally {
+        setLoading(false);
+      }
+    } 
+    else {
+      try {
+        setLoading(true);
+
+        let createdUser = null;
+
+        if (isFromLogin) {
+          // Already authenticated with Google, get the current Firebase user
+          createdUser = auth.currentUser;
+          if (!createdUser) {
+            throw new Error("No authenticated Google user found.");
+          }
+          user.id = createdUser.uid;
+        } else {
+          // Normal email/password signup
+          if (!user.email || !user.password) {
+            throw new Error("Email and password are required for registration.");
+          }
+          const userCredential = await createUserWithEmailAndPassword(auth, user.email, user.password);
+          createdUser = userCredential.user;
+
+          if (!createdUser) {
             throw new Error("Failed to create user in Firebase Authentication.");
           }
-          updatedUser.id = createdUser.uid 
-    
-          const userRef = doc(firestore, "Users", updatedUser.id);
-          await setDoc(userRef, updatedUser);
-          
-          const userDoc = await getDoc(userRef); // Use getDoc to retrieve the document
-          if (!userDoc.exists()) {
-            throw new Error("Failed to save user data in Firestore.");
-          } 
+          user.id = createdUser.uid;
         }
-        catch (error: any) {
-          console.error("Error creating user:", error.message);
-          Alert.alert("Error", error.message || "Failed to create user");
-        } finally {
-          setLoading(false); // Hide loading indicator
+
+        // Upload profile and background images (if any)
+        const profileImageUrl = user.profileImageObject
+          ? await uploadNewImage(user.profileImageObject, "profileImage")
+          : user.profileImage || "";
+
+        const backgroundImageUrl = user.backgroundImageObject
+          ? await uploadNewImage(user.backgroundImageObject, "backgroundImage")
+          : null;
+
+        user.profileImage = profileImageUrl || "";
+        user.backgroundImage = backgroundImageUrl || "";
+        let storeId = user.id;
+
+        delete user.profileImageObject;
+        delete user.backgroundImageObject;
+        delete user.password;
+        delete user.id;
+
+        const userRef = doc(firestore, "Users", storeId);
+        // Use setDoc with { merge: true } to avoid overwriting existing Google account data
+        await setDoc(userRef, user, { merge: true });
+
+        const userDoc = await getDoc(userRef);
+        if (!userDoc.exists()) {
+          throw new Error("Failed to save user data in Firestore.");
         }
+
+      /*  const userData = userDoc.data();
+
+        const registeredUser: User = {
+          id: userDoc.id,
+          name: userData.name || "",
+          surName: userData.surName || "",
+          email: userData.email || "",
+          password: "",
+          base: userData.base || "",
+          nationality: userData.nationality || "",
+          position: userData.position || "",
+          companyName: userData.companyName || "",
+          age: userData.age || 0,
+          sex: userData.sex || "",
+          relationshipStatus: userData.relationshipStatus || "",
+          hobbies: userData.hobbies || [],
+          profileImage: user.profileImage || "",
+          backgroundImage: user.backgroundImage || "",
+          licenses: userData.licenses || [],
+          licenseType: userData.licenseType || "",
+          experiences: userData.experiences || [],
+          flyingHoursPIC: userData.flyingHoursPIC || 0,
+          flyingHoursTotal: userData.flyingHoursTotal || 0,
+          yearsOfExperience: userData.yearsOfExperience || 0,
+          friends: userData.friends,
+          blocked: userData.blocked,
+          lastSeen: userData.lastSeen ? userData.lastSeen.toDate?.() ?? new Date(userData.lastSeen) : null,
+          createdAt: userData.createdAt && userData.createdAt.toDate ? userData.createdAt.toDate() : new Date(),
+          updatedAt: userData.updatedAt && userData.updatedAt.toDate ? userData.updatedAt.toDate() : new Date()
+        };
+
+        console.log("Registered User id: ", registeredUser.id);
+        UtilFunctions.saveUser(registeredUser); */
+
+        if (auth.currentUser) {
+          await sendEmailVerification(auth.currentUser);
+          console.log("📧 Verification email sent to:", auth.currentUser.email);
+          await UtilFunctions.deleteUser();
+        }
+
+       // router.dismissAll();
+       // router.replace("../../(drawer)/(tabs)/CrewFind");
+       router.replace("./VerifyEmail");
+      } catch (error: any) {
+        console.error("Error creating/updating user:", error.message);
+        Alert.alert("Error", error.message || "Failed to create/update user");
+      } finally {
+        setLoading(false);
       }
     }
   };
 
-  const handleLicenseSelect = (license: string) => {
-    if (!licenses.includes(license)) {
-      if (licenses.length < 3) {
-        setLicenses([...licenses, license]);
-      } else {
-        Alert.alert("Limit Exceeded", "You can only select up to 3 licenses.");
-      }
-    }
-    setShowLicenseModal(false);
-  };
-
-  const handleLicenseTypeSelect = (licenseType: string) => {
-    setLicenseType(licenseType); // Set the selected license type directly
-    setShowLicenseTypeModal(false); // Close the modal after selection
-  };
-
-  const handleExperienceSelect = (experience: string) => {
-    if (!experiences.includes(experience)) {
-      if (experiences.length < 5) {
-        setExperiences([...experiences, experience]);
-      } else {
-        Alert.alert("Limit Exceeded", "You can only select up to 5 experiences.");
-      }
-    }
-    setShowExperienceModal(false);
-  };
-
-  const handleTagDelete = (license: string) => {
-    setLicenses(licenses.filter(item => item !== license));
-  };
-
-  const handleExperienceTagDelete = (experience: string) => {
-    setExperiences(experiences.filter(item => item !== experience));
+  const openImagePicker = (type: "profile" | "background") => {
+    setImageType(type);
+    setShowModal(true);
   };
 
   return (
-    <DismissKeyboardView>
-        <Container>
-        {loading && <LoadingIndicator />}
-        <ImageContainer>
-          <AirplaneImage source={require('../../../assets/images/airplane-login.jpg')} resizeMode="cover" />  
-          <Overlay />
-        </ImageContainer>
-        <HeadingText>
-          {cameFromSettings ? "Experience " : "Create an  "}
-          <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-        </HeadingText>
-        <ScrollView style={{ flex: 1, width: '100%', marginTop: 140 }} contentContainerStyle={{ alignItems: 'center' }}>
-          <Form>
-            {/* License Input */}
-            <InputContainer>
-              <StyledIconEmail name="id-card" size={20} color="#999999" />
-              <Input
-                placeholder="License"
-                placeholderTextColor="#999999"
-                value=""
-                onChangeText={() => {}}
+    <DismissKeyboardView style={{ flex: 1 }}>
+      {loading && <LoadingIndicator />}
+      <Container>
+        <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
+        {!isFromSettings && (
+        <>
+        <ProgressHeader>
+          <StepText>Step 4 of 4</StepText>
+          <StepPercentage>100%</StepPercentage>
+        </ProgressHeader>
+
+        <ProgressBarContainer>
+          <ProgressBarFill widthPercentage={100} />
+        </ProgressBarContainer>
+        </>
+        )}
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 180 }}
+          showsVerticalScrollIndicator={true}
+        >
+          <Title isFromSettings={isFromSettings}>Add Photos</Title>
+          <Subtitle>Upload your profile and background photos</Subtitle>
+
+          <Label>Profile Picture</Label>
+          <UploadCircle onPress={() => openImagePicker("profile")}>
+            {profileImage ? (
+              <Preview
+                source={{
+                  uri: profileImage?.uri || "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+                  priority: FastImage.priority.normal,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
               />
-              <DropdownIconContainer onPress={() => setShowLicenseModal(true)}>
-                <Icon name="caret-down" size={20} color="#999999" />
-              </DropdownIconContainer>
-            </InputContainer>
+            ) : (
+              <Icon name="camera" size={30} color="#B0B5C0" />
+            )}
+          </UploadCircle>
 
-            <TagsContainer>
-              {licenses.length > 0 &&
-                licenses.map((type) => (
-                  <Tag key={type}>
-                    <TagText>{type}</TagText>
-                    <TagDeleteButton onPress={() => handleTagDelete(type)}>
-                      <Icon name="times" size={14} color="white" />
-                    </TagDeleteButton>
-                  </Tag>
-                ))}
-            </TagsContainer>
-
-            {/* License Type with Tags */}
-            <InputContainer>
-              <StyledIconEmail name="clipboard" size={20} color="#999999" />
-              <Input
-                placeholder="License Type"
-                placeholderTextColor="#999999"
-                keyboardType="default"
-                value={licenseType}
-                editable={false} // Prevent text input
+          <Label style={{ marginTop: 30 }}>Background Photo</Label>
+          <UploadBox onPress={() => openImagePicker("background")}>
+            {backgroundImage ? (
+              <Preview
+                source={{
+                  uri: backgroundImage?.uri,
+                  priority: FastImage.priority.normal,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
               />
-              <TouchableOpacity onPress={() => setShowLicenseTypeModal(true)}>
-                <Icon name="caret-down" size={20} color="#999999" />
-              </TouchableOpacity>
-            </InputContainer>
-
-            {/* Experience Input */}
-            <InputContainer>
-              <StyledIconEmail name="briefcase" size={20} color="#999999" />
-              <Input
-                placeholder="Experience"
-                placeholderTextColor="#999999"
-                editable={false} // Prevent text input
-              />
-              <DropdownIconContainer onPress={() => setShowExperienceModal(true)}>
-                <Icon name="caret-down" size={20} color="#999999" />
-              </DropdownIconContainer>
-            </InputContainer>
-
-            <TagsContainer>
-              {experiences.map((experience) => (
-                <Tag key={experience}>
-                  <TagText>{experience}</TagText>
-                  <TagDeleteButton onPress={() => handleExperienceTagDelete(experience)}>
-                    <Icon name="times" size={14} color="white" />
-                  </TagDeleteButton>
-                </Tag>
-              ))}
-            </TagsContainer>
-
-            {/* Flying Hours Input */}
-            <InputContainer>
-              <StyledIconEmail name="tachometer" size={20} color="#999999" />
-              <Input
-                placeholder="Flying Hours"
-                placeholderTextColor="#999999"
-                keyboardType="numeric"
-                value={flyingHours}
-                onChangeText={setFlyingHours}
-              />
-            </InputContainer>
-
-            {/* Register Button */}
-            <GradientButton title={cameFromSettings ? "Save" : "Register"} onPress={handleStep2Press} />
-          </Form>
+            ) : (
+              <Icon name="image" size={30} color="#B0B5C0" />
+            )}
+          </UploadBox>
         </ScrollView>
 
-        {/* License Modal */}
-        <Modal transparent={true} visible={showLicenseModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={licenseOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => handleLicenseSelect(item)}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowLicenseModal(false)}>
-                <CloseButtonText>Cancel</CloseButtonText>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
+        <FixedBottom>
+          <NextButton onPress={handleCompleteRegistration}>
+            <NextButtonText>{isFromSettings ? "Save" : "Complete Registration"}</NextButtonText>
+          </NextButton>
+        </FixedBottom>
 
-        {/* License Type Modal */}
-        <Modal transparent={true} visible={showLicenseTypeModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={licenseTypeOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => handleLicenseTypeSelect(item)}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowLicenseTypeModal(false)}>
-                <CloseButtonText>Cancel</CloseButtonText>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
+        <Modal transparent={true} visible={showModal} animationType="slide">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalOption onPress={() => pickImage("camera")}>
+              <OptionText>Camera</OptionText>
+            </ModalOption>
+            <ModalOption onPress={() => pickImage("gallery")}>
+              <OptionText>Gallery</OptionText>
+            </ModalOption>
+            <CloseButton onPress={() => setShowModal(false)}>
+              <Text style={{ color: "#fff" }}>Cancel</Text>
+            </CloseButton>
+          </ModalContent>
         </Modal>
-
-        {/* Experience Modal */}
-        <Modal transparent={true} visible={showExperienceModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={experienceOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => handleExperienceSelect(item)}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowExperienceModal(false)}>
-                <CloseButtonText>Cancel</CloseButtonText>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
-        {/* Loading Indicator */}
-        {loading && (
-          <View
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0, 0, 0, 0.5)", // Dull the background
-              justifyContent: "center",
-              alignItems: "center",
-              zIndex: 9999, // Ensure the loader is on top of everything else
-            }}
-          >
-            <ActivityIndicator size="large" color="#ffffff" />
-          </View>
-        )}
       </Container>
     </DismissKeyboardView>
   );
@@ -370,137 +358,151 @@ const Register3 = () => {
 
 export default Register3;
 
-const Container = styled.View`
+const Container = styled.ScrollView`
   flex: 1;
-  background-color: #F8F9FC;
-  align-items: center;
-  justify-content: center;
+  background-color: white;
 `;
 
-const ImageContainer = styled.View`
-  position: absolute;
-  top: 0;
-  width: ${screenWidth}px;
-  height: 300px;
-`;
-
-const AirplaneImage = styled.Image`
-  width: ${screenWidth}px;
-  height: 300px;
-  margin-bottom: 20px;
-  position: absolute;
-  top: 0;
-`;
-
-const Overlay = styled.View`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-`;
-
-const HeadingText = styled.Text`
-  position: absolute;
-  top: 100px;
-  margin-left: 20px;
-  margin-bottom: 30px;
-  font-size: 44px;
-  font-weight: bold;
-  color: #FFF;
-`;
-
-const BlueText = styled.Text`
-  color: #5DCBCF;
-`;
-
-const Form = styled.View`
-  margin-top: 125px;
-  width: 80%;
-  max-width: 400px;
-  align-items: center;
-`;
-
-const InputContainer = styled.View`
+const ProgressHeader = styled.View`
   flex-direction: row;
+  justify-content: space-between;
   align-items: center;
-  width: 100%;
-  height: 60px;
-  background-color: #FFFFFF;
-  border-radius: 10px;
-  padding-horizontal: 10px;
-  margin-bottom: 8px;
+  padding: 15px 20px 5px 20px;
 `;
 
-const StyledIconEmail = styled(Icon)`
-  margin-right: 10px;
-`;
-
-const Input = styled.TextInput`
-  flex: 1;
-  height: 60px;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 15px;
-  font-size: 16px;
-  color: #000;
-  background-color: #FFFFFF;
-`;
-
-const TagsContainer = styled.View`
-  flex-direction: row;
-  flex-wrap: wrap; /* Wrap tags to the next line when necessary */
-  margin-top: 0px; /* Add some space between the input and tags */
-  padding: 0px;
-  background-color: #f8f9fc; /* Optional background for distinction */
-  border-radius: 10px; /* Optional rounded corners */
-`;
-
-const Tag = styled.View`
-  background-color: #5dcbcf;
-  border-radius: 15px;
-  padding: 5px 10px;
-  margin-right: 5px;
-  margin-bottom: 5px;
-  flex-direction: row;
-  align-items: center;
-`;
-
-const TagText = styled.Text`
-  color: white;
+const StepText = styled.Text`
   font-size: 14px;
+  color: #8c8c8c;
 `;
 
-const TagDeleteButton = styled.TouchableOpacity`
-  margin-left: 5px;
+const StepPercentage = styled.Text`
+  font-size: 14px;
+  color: #000000;
 `;
 
-const DropdownIconContainer = styled.TouchableOpacity`
+const ProgressBarContainer = styled.View`
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  width: 90%;
+  margin: 10px 20px;
+  overflow: hidden;
+`;
+
+const ProgressBarFill = styled.View<{ widthPercentage: number }>`
+  height: 100%;
+  width: ${(props) => props.widthPercentage}%;
+  background-color: #1c1c88;
+`;
+
+const Title = styled.Text<{ isFromSettings?: boolean }>`
+  font-size: 24px;
+  font-weight: bold;
+  color: #1c1c88;
+  margin: ${({ isFromSettings }) => (isFromSettings ? "5px 20px 5px 20px" : "0px 20px 5px 20px")};
+`;
+
+const Subtitle = styled.Text`
+  font-size: 16px;
+  color: #5c5c5c;
+  margin: 0 20px 20px 20px;
+`;
+
+const Label = styled.Text`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1c88;
+  margin: 8px 20px 4px 20px;
+`;
+
+const UploadCircle = styled.TouchableOpacity`
+  width: 160px;
+  height: 160px;
+  border-radius: 80px;
+  border: 2px dashed #d1d5db;
+  justify-content: center;
+  align-items: center;
+  background-color: #fafafa;
+  align-self: center;
+`;
+
+const UploadBox = styled.TouchableOpacity`
+  width: 90%;
+  height: 160px;
+  border-radius: 15px;
+  border: 2px dashed #d1d5db;
+  justify-content: center;
+  align-items: center;
+  background-color: #fafafa;
+  margin: 10px 20px;
+`;
+
+const UploadText = styled.Text`
+  margin-top: 10px;
+  color: #aeb0b4;
+  font-size: 16px;
+`;
+
+const UploadNote = styled.Text`
+  text-align: center;
+  font-size: 13px;
+  color: #aeb0b4;
+  margin-top: 10px;
+`;
+
+const Preview = styled(FastImage)`
+  width: 100%;
+  height: 100%;
+  border-radius: 15px;
+`;
+
+const FooterRow = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 40px;
+`;
+
+const FixedBottom = styled.View`
   position: absolute;
-  right: 10px;
-  top: 50%; /* Vertically center the icon relative to the InputContainer */
-  transform: translateY(-10px); /* Offset for proper centering */
+  bottom: 0;
+  width: 100%;
+  padding: 20px;
+  background-color: #fff;
+`;
+
+const NextButton = styled.TouchableOpacity`
+  background-color: #1c1c88;
+  padding: 14px;
+  border-radius: 10px;
+  align-items: center;
+`;
+
+const NextButtonText = styled.Text`
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
 `;
 
 const ModalOverlay = styled.View`
   flex: 1;
-  justify-content: flex-end;
-  align-items: center;
   background-color: rgba(0, 0, 0, 0.5);
 `;
 
 const ModalContent = styled.View`
-  width: 100%;
-  background-color: #fff;
-  border-radius: 10px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: white;
   padding: 20px;
-  justify-content: center;
-  max-height: 60%;
+  border-radius: 15px;
 `;
 
-const Option = styled.TouchableOpacity`
+const ModalOption = styled.TouchableOpacity`
   padding: 15px;
+  align-items: center;
+  border-bottom-width: 1px;
+  border-bottom-color: #ddd;
 `;
 
 const OptionText = styled.Text`
@@ -508,15 +510,9 @@ const OptionText = styled.Text`
 `;
 
 const CloseButton = styled.TouchableOpacity`
-  padding: 15px;
   background-color: red;
+  padding: 15px;
   border-radius: 10px;
-  width: 100%;
   align-items: center;
   margin-top: 10px;
-`;
-
-const CloseButtonText = styled.Text`
-  color: white;
-  font-size: 16px;
 `;

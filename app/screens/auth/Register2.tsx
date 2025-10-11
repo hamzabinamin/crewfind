@@ -1,331 +1,528 @@
-import { Dimensions, Alert, Modal, TouchableOpacity, Text, View, Platform } from "react-native";
+import {
+  View,
+  Dimensions,
+  Modal,
+  FlatList,
+  Alert,
+  TouchableOpacity,
+  Text,
+  TextInput,
+  Platform,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView
+} from "react-native";
 import React, { useState, useEffect } from "react";
-import styled from "styled-components/native";
-import * as ImagePicker from "expo-image-picker";
-import GradientButton from "../../utilities/GradientButton";
-import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
-import Icon from "react-native-vector-icons/FontAwesome";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import styled from 'styled-components/native';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import DismissKeyboardView from '../../../components/DismissKeyboardView';
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { ref, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../../FirebaseConfig";
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { doc, updateDoc } from "firebase/firestore";
+import { db } from '../../../FirebaseConfig';
 
-const screenWidth = Dimensions.get("window").width;
+const licenseOptions = [
+  "ICAO", "FAA", "EASA", "Transport Canada",
+  "DGCA", "ANAC", "CASA", "JAA"
+];
+const licenseTypeOptions = [
+  "Airline", "Commercial", "Private", "Cabin Crew"
+];
+const experienceOptions = [
+  "Boeing Widebody", "Airbus Widebody",
+  "Boeing Narrowbody", "Airbus Narrowbody",
+  "Single Piston", "Multi Piston",
+  "Single Turbine", "Multi Turbine",
+  "Corporate Jets < 20 Tons", "Corporate Jets > 20 Tons", "Military Jets"
+];
 
-interface ProfileImage {
-  uri: string;
-}
-
-interface BackgroundImage {
-  uri: string;
-}
+type SelectModalProps = {
+  visible: boolean;
+  options: string[];
+  onSelect: (option: string) => void;
+  onClose: () => void;
+  selectedItems?: string[];
+  maxSelections?: number;
+  allowMultiple?: boolean;
+};
 
 const Register2 = () => {
   const router = useRouter();
+  const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const userString = typeof params.user === "string" ? params.user : null;
-  const [user, setUser] = useState<User>(userString ? JSON.parse(userString) : {});
+  const userParam = typeof params.user === "string" ? JSON.parse(params.user) : {};
+  const { cameFromLogin, cameFromSettings } = useLocalSearchParams();
+  const isFromSettings = cameFromSettings === "true";
+  const isFromLogin = cameFromLogin === "true";
+
+  const [user, setUser] = useState<User>(userParam);
+  const [licenses, setLicenses] = useState<string[]>([]);
+  const [licenseType, setLicenseType] = useState("");
+  const [experiences, setExperiences] = useState<string[]>([]);
+  const [flyingHoursPIC, setFlyingHoursPIC] = useState("");
+  const [flyingHoursTotal, setFlyingHoursTotal] = useState("");
+  const [yearsOfExperience, setYearsOfExperience] = useState("");
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [showLicenseTypeModal, setShowLicenseTypeModal] = useState(false);
+  const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  console.log("Received User: ", user);
-
-  const [profileImage, setProfileImage] = useState<ProfileImage | null>(null);
-  const [backgroundImage, setBackgroundImage] = useState<BackgroundImage | null>(null);
-  const [profileImageChanged, setProfileImageChanged] = useState(false);
-  const [backgroundImageChanged, setBackgroundImageChanged] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [imageType, setImageType] = useState<"profile" | "background" | null>(null);
-  const cameFromSettings = params.cameFromSettings === "true";
-  console.log("Params Register2", params);
-  console.log("cameFromSettings", cameFromSettings);
 
   useEffect(() => {
-    console.log("Inside Register's useEffect");
-    const fetchUserFromStorage = async () => {
-      const storedUser = await UtilFunctions.getUser();
-      console.log("Stored User: ", storedUser);
-      if (storedUser) {
-        setUser(storedUser);
-        updateFieldsForEdit(storedUser);
+    const fetchUser = async () => {
+      const stored = await UtilFunctions.getUser();
+      if (stored && (isFromSettings || isFromLogin)) {
+        setUser(stored);
+        loadFields(stored);
       }
     };
-    fetchUserFromStorage();
+    fetchUser();
   }, []);
 
-  // Request camera and gallery permissions
   useEffect(() => {
-    const requestPermissions = async () => {
-      const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
-      const { status: galleryStatus } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (cameraStatus !== "granted" || galleryStatus !== "granted") {
-        Alert.alert("Permission Denied", "You need to grant camera and gallery permissions.");
-      }
-    };
-    requestPermissions();
-  }, []);
+    let headerTitle = "Create Account";
 
-  const updateFieldsForEdit = (user: User) => {
-    setProfileImage(user.profileImageUrl ? { uri: user.profileImageUrl } : null);
-    setBackgroundImage(user.backgroundImageUrl ? { uri: user.backgroundImageUrl } : null);
+    if (isFromLogin) {
+      headerTitle = "Complete Your Profile";
+    }
+    else if (isFromSettings) {
+      headerTitle = "Experience Management";
+    }
+    navigation.setOptions({
+      headerTitle: headerTitle
+    });
+  }, [navigation, isFromSettings, isFromLogin]);
+
+  const loadFields = (u: User) => {
+    setLicenses(u.licenses || []);
+    setLicenseType(u.licenseType || "");
+    setExperiences(u.experiences || []);
+    setFlyingHoursPIC(u.flyingHoursPIC?.toString() || "");
+    setFlyingHoursTotal(u.flyingHoursTotal?.toString() || "");
+    setYearsOfExperience(u.yearsOfExperience?.toString() || "");
   };
 
-  const pickImage = async (type: "camera" | "gallery") => {
-    let result;
-
-    if (type === "camera") {
-      result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-    } else if (type === "gallery") {
-      result = await ImagePicker.launchImageLibraryAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-    }
-
-    if(result && !result.canceled && result.assets && result.assets.length > 0) {
-      const selectedImage = { uri: result.assets[0].uri };
-
-      if(imageType === "profile") {
-        setProfileImage(selectedImage);
-        setProfileImageChanged(true);
-        setUser((prevUser: User) => ({ ...prevUser, profileImage: selectedImage })); // Update user object with profile image
-      } else if(imageType === "background") {
-        setBackgroundImage(selectedImage);
-        setBackgroundImageChanged(true);
-        setUser((prevUser: User) => ({ ...prevUser, backgroundImage: selectedImage })); // Update user object with background image
-      }
+  const validateAndContinue = async () => {
+    if (licenses.length === 0) return Alert.alert("Pick at least one license.");
+    if (licenses.length > 3) return Alert.alert("Max 3 licenses.");
+    if (!licenseType) return Alert.alert("Pick a license type.");
+    if (experiences.length === 0) return Alert.alert("Pick at least one experience.");
+    if (experiences.length > 5) return Alert.alert("Max 5 experiences.");
+    if (user.position !== "Cabin Crew") {
+      if (!flyingHoursPIC || isNaN(Number(flyingHoursPIC))) return Alert.alert("Enter valid PIC hours.");
+      if (!flyingHoursTotal || isNaN(Number(flyingHoursTotal))) return Alert.alert("Enter valid total hours.");
     } else {
-      console.log("No image was selected or the operation was canceled.");
-    }
+      if (!yearsOfExperience || isNaN(Number(yearsOfExperience))) return Alert.alert("Enter valid years of experience.");
+    } 
 
-    // Close the modal after selecting an image
-    setShowModal(false);
+    setLoading(true);
+    const data = {
+      licenses,
+      licenseType,
+      experiences,
+      ...(user.position !== "Cabin Crew"
+        ? {
+            flyingHoursPIC: Number(flyingHoursPIC),
+            flyingHoursTotal: Number(flyingHoursTotal),
+          }
+        : {
+            yearsOfExperience: Number(yearsOfExperience),
+          }),
+    };
+
+    try {
+      const updated = { ...user, ...data };
+      if (isFromSettings && user && user.id) {
+        await updateDoc(doc(db, "Users", user.id), data);
+        Alert.alert("Saved experience information");
+      } 
+      else if (isFromLogin && user && user.id) {
+        await updateDoc(doc(db, "Users", user.id), data);
+        router.push({
+          pathname: "./Register3",
+          params: { user: JSON.stringify(updated), ...(isFromLogin && { cameFromLogin: "true" }) }
+        });
+      }
+      else  {
+        router.push({
+          pathname: "./Register3",
+          params: { user: JSON.stringify(updated), ...(isFromLogin && { cameFromLogin: "true" }) }
+        });
+      } 
+      UtilFunctions.saveUser(updated);
+      setUser(updated);
+    } catch (e) {
+      Alert.alert("Error saving data", (e as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleStep3Press = async () => {
-    if (!profileImage || !backgroundImage) {
-      Alert.alert("Validation Error", "Both images are required.");
-      return;
-    }
-
-    if(cameFromSettings) {
-      try {
-        setLoading(true);
-        const userRef = doc(db, "Users", user.id);
-        const userSnap = await getDoc(userRef);
-
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          const oldProfileUrl = userData.profileImage;
-          const oldBackgroundUrl = userData.backgroundImage;
-
-          // Function to delete old image from Firebase Storage
-          const deleteOldImage = async (imageUrl: string) => {
-            if (imageUrl) {
-              const imageRef = ref(storage, imageUrl);
-              try {
-                await deleteObject(imageRef);
-                console.log(`Deleted old image: ${imageUrl}`);
-              } catch (error) {
-                console.error("Error deleting old image:", error);
-              }
-            }
-          };
-
-          // Function to upload a new image and get the URL
-          const uploadNewImage = async (imageUri: string, imageType: "profileImage" | "backgroundImage") => {
-            const timestamp = Date.now();
-            const response = await fetch(imageUri);
-            const blob = await response.blob();
-            const path = `Users/${imageType === "profileImage" ? "profileImages" : "backgroundImages"}`;
-            const fileName = `${timestamp}-${user.id}-${imageType}.jpg`;
-            const imageRef = ref(storage, `${path}/${fileName}`);
-            await uploadBytes(imageRef, blob);
-            return await getDownloadURL(imageRef);
-          };
-
-          const updatedData: Partial<User> = {};
-
-          // Delete and upload only if the image has changed
-          if (profileImageChanged) {
-            await deleteOldImage(oldProfileUrl);
-            updatedData.profileImageUrl = await uploadNewImage(profileImage.uri, "profileImage");
-          }
-
-          if (backgroundImageChanged) {
-            await deleteOldImage(oldBackgroundUrl);
-            updatedData.backgroundImageUrl = await uploadNewImage(backgroundImage.uri, "backgroundImage");
-          }
-
-          // Update Firestore with new image URLs
-          if (Object.keys(updatedData).length > 0) {
-            await updateDoc(userRef, updatedData);
-            Alert.alert("Success", "Images updated successfully!");
-          }
-        }
-      } catch (error) {
-        console.error("Error updating profile images:", error);
-        Alert.alert("Error", "Failed to update profile images. Please try again.");
+  // Updated handler for multi-select items (licenses and experiences)
+  const handleMultiSelect = (option: string, setState: React.Dispatch<React.SetStateAction<string[]>>, max: number, current: string[]) => {
+    if (current.includes(option)) {
+      // Remove if already selected
+      setState(current.filter(item => item !== option));
+    } else {
+      // Add if not selected and under max limit
+      if (current.length >= max) {
+        Alert.alert(`Maximum ${max} selections allowed`);
         return;
       }
-      finally {
-        setLoading(false);
-      }
+      setState([...current, option]);
     }
-
-    // Navigate to Register3 with the updated user object
-    router.push({
-      pathname: "./Register3",
-      params: { user: JSON.stringify(user) }, // Pass the updated user object with images
-    });
   };
 
-  const openImagePicker = (type: "profile" | "background") => {
-    setImageType(type);
-    setShowModal(true); // Show modal to select camera or gallery
+  const deleteTag = (option: string, setter: any) => setter((prev: string[]) => prev.filter(x => x !== option));
+
+  return (
+    <Container>
+      {loading && <LoadingIndicator />}
+      <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
+      
+      {!isFromSettings && (
+        <>
+          <ProgressHeader>
+            <StepText>Step 3 of 4</StepText>
+            <StepPercentage>75%</StepPercentage>
+          </ProgressHeader>
+          <ProgressBarContainer>
+            <ProgressBarFill widthPercentage={75} />
+          </ProgressBarContainer>
+        </>
+      )}
+
+      {/* Use KeyboardAwareScrollView instead of regular ScrollView */}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }} // Increased padding for button space
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraHeight={Platform.OS === 'ios' ? 20 : 0}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 0}
+      >
+        <SectionTitle>Experience</SectionTitle>
+        <Subtitle>Share your aviation qualifications and experience</Subtitle>
+
+        {/* License */}
+        <GroupLabel>License (Select up to 3)</GroupLabel>
+        <TouchableOpacity onPress={() => setShowLicenseModal(true)}>
+          <InputContainer>
+            <StyledIconEmail name="id-card" size={20} color="#999999" />
+            <Input pointerEvents="none" placeholder="Select License(s)" value={licenses.join(", ")} editable={false} placeholderTextColor="#999999" />
+            <Icon name="caret-down" size={20} color="#999999" />
+          </InputContainer>
+        </TouchableOpacity>
+        <TagsContainer>
+          {licenses.map(l => (
+            <Tag key={l}>
+              <TagText>{l}</TagText>
+              <TagDeleteButton onPress={() => deleteTag(l, setLicenses)}>
+                <Icon name="times" size={14} color="#FFF" />
+              </TagDeleteButton>
+            </Tag>
+          ))}
+        </TagsContainer>
+
+        {/* License Type */}
+        <GroupLabel>License Type</GroupLabel>
+        <TouchableOpacity onPress={() => setShowLicenseTypeModal(true)}>
+          <InputContainer>
+            <StyledIconEmail name="clipboard" size={20} color="#999999" />
+            <Input pointerEvents="none" placeholder="Select License Type" value={licenseType} editable={false} placeholderTextColor="#999999" />
+            <Icon name="caret-down" size={20} color="#999999" />
+          </InputContainer>
+        </TouchableOpacity>
+
+        {/* Experience */}
+        <GroupLabel>Experience (Select up to 5)</GroupLabel>
+        <TouchableOpacity onPress={() => setShowExperienceModal(true)}>
+          <InputContainer>
+            <StyledIconEmail name="briefcase" size={20} color="#999999" />
+            <Input pointerEvents="none" placeholder="Select Experience" value={experiences.join(", ")} editable={false} placeholderTextColor="#999999" />
+            <Icon name="caret-down" size={20} color="#999999" />
+          </InputContainer>
+        </TouchableOpacity>
+        <TagsContainer>
+          {experiences.map(e => (
+            <Tag key={e}>
+              <TagText>{e}</TagText>
+              <TagDeleteButton onPress={() => deleteTag(e, setExperiences)}>
+                <Icon name="times" size={14} color="#FFF" />
+              </TagDeleteButton>
+            </Tag>
+          ))}
+        </TagsContainer>
+
+        {/* Hours or Years */}
+        {user.position !== "Cabin Crew" ? (
+          <>
+            <GroupLabel>Flying Hours PIC</GroupLabel>
+            <InputContainer>
+              <StyledIconEmail name="tachometer" size={20} color="#999999" />
+              <Input placeholder="e.g., 500" keyboardType="numeric" value={flyingHoursPIC} onChangeText={setFlyingHoursPIC} />
+            </InputContainer>
+            <GroupLabel>Flying Hours Total</GroupLabel>
+            <InputContainer>
+              <StyledIconEmail name="tachometer" size={20} color="#999999" />
+              <Input placeholder="e.g., 1200" keyboardType="numeric" value={flyingHoursTotal} onChangeText={setFlyingHoursTotal} />
+            </InputContainer>
+          </>
+        ) : (
+          <>
+            <GroupLabel>Years of Experience</GroupLabel>
+            <InputContainer>
+              <StyledIconEmail name="history" size={20} color="#999999" />
+              <Input placeholder="e.g., 5" keyboardType="numeric" value={yearsOfExperience} onChangeText={setYearsOfExperience} />
+            </InputContainer>
+          </>
+        )}
+      </KeyboardAwareScrollView>
+
+      {/* Fixed button with safe area */}
+      <ButtonContainer>
+        <NextButton onPress={validateAndContinue}>
+          <NextButtonText>{(isFromSettings) ? "Save" : "Next"}</NextButtonText>
+        </NextButton>
+      </ButtonContainer>
+
+      {/* Modals */}
+      <SelectModal
+        visible={showLicenseModal}
+        options={licenseOptions}
+        selectedItems={licenses}
+        maxSelections={3}
+        allowMultiple={true}
+        onSelect={o => handleMultiSelect(o, setLicenses, 3, licenses)}
+        onClose={() => setShowLicenseModal(false)}
+      />
+      <SelectModal
+        visible={showLicenseTypeModal}
+        options={licenseTypeOptions}
+        allowMultiple={false}
+        onSelect={o => { setLicenseType(o); setShowLicenseTypeModal(false); }}
+        onClose={() => setShowLicenseTypeModal(false)}
+      />
+      <SelectModal
+        visible={showExperienceModal}
+        options={experienceOptions}
+        selectedItems={experiences}
+        maxSelections={5}
+        allowMultiple={true}
+        onSelect={o => handleMultiSelect(o, setExperiences, 5, experiences)}
+        onClose={() => setShowExperienceModal(false)}
+      />
+    </Container>
+  );
+};
+
+// Enhanced Modal component with selection numbers
+const SelectModal: React.FC<SelectModalProps> = ({ 
+  visible, 
+  options, 
+  onSelect, 
+  onClose, 
+  selectedItems = [], 
+  maxSelections = 1, 
+  allowMultiple = false 
+}) => {
+  const [searchText, setSearchText] = useState("");
+  const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (options && options.length > 0) {
+      const filtered = options.filter((item) =>
+        item.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredOptions(filtered);
+    } else {
+      setFilteredOptions([]);
+    }
+  }, [searchText, options]);
+
+  useEffect(() => {
+    if (visible) {
+      setSearchText("");
+      setFilteredOptions(options || []);
+    }
+  }, [visible, options]);
+
+  const getModalTitle = () => {
+    if (options === licenseOptions) return "Select License";
+    if (options === licenseTypeOptions) return "Select License Type";
+    if (options === experienceOptions) return "Select Experience";
+    return "Select Option";
   };
 
   return (
-    <DismissKeyboardView>
-      <Container>
-        {loading && <LoadingIndicator />}
-        <ImageContainer>
-          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-          <Overlay />
-        </ImageContainer>
-        <HeadingText>
-        {cameFromSettings ? (
-          <>
-          Profile <BlueText>Management</BlueText>
-        </>
-        ) : (
-          <>
-          Create an <BlueText>Account!</BlueText>
-        </>
-        )}
-        </HeadingText>
-        <Form>
-          {/* Profile Image Upload */}
-          <InputContainer>
-            <StyledIconEmail name="user-circle" size={20} color="#999999" />
-            <Input placeholder="Profile Image" placeholderTextColor="#999999" editable={false} />
-            <TouchableOpacity onPress={() => openImagePicker("profile")}>
-              {profileImage ? (
-                <Thumbnail source={{ uri: profileImage.uri }} />
-              ) : (
-                <StyledIconEmail name="upload" size={20} color="#999999" />
+    <Modal transparent visible={visible} animationType="slide">
+      <ModalOverlay>
+        <TouchableWithoutFeedback onPress={() => onClose()}>
+          <View style={{ flex: 1 }} />
+        </TouchableWithoutFeedback>
+        
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 0 }}
+        >
+          <ModalContentBottom>
+            <ModalHeader>
+              <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, textAlign: "center", color: "#1c1c88" }}>
+                {getModalTitle()}
+              </Text>
+              
+              <TextInput
+                placeholder="Search..."
+                placeholderTextColor="#888"
+                value={searchText}
+                onChangeText={setSearchText}
+                style={{ 
+                  padding: 12, 
+                  borderWidth: 1, 
+                  borderColor: "#ddd", 
+                  borderRadius: 8,
+                  backgroundColor: "#f9f9f9",
+                  fontSize: 16
+                }}
+              />
+
+              {allowMultiple && (
+                <Text style={{ 
+                  fontSize: 14, 
+                  color: "#666", 
+                  textAlign: "center", 
+                  marginTop: 8 
+                }}>
+                  Selected: {selectedItems.length}/{maxSelections}
+                </Text>
               )}
-            </TouchableOpacity>
-          </InputContainer>
-
-          {/* Profile Background Upload */}
-          <InputContainer>
-            <StyledIconEmail name="image" size={20} color="#999999" />
-            <Input placeholder="Profile Background" placeholderTextColor="#999999" editable={false} />
-            <TouchableOpacity onPress={() => openImagePicker("background")}>
-              {backgroundImage ? (
-                <Thumbnail source={{ uri: backgroundImage.uri }} />
-              ) : (
-                <StyledIconEmail name="upload" size={20} color="#999999" />
-              )}
-            </TouchableOpacity>
-          </InputContainer>
-
-          {cameFromSettings ? ( <GradientButton title="Save" onPress={handleStep3Press} /> ) : (
-            <GradientButtonWithArrow title="Step 3 of 3" onPress={handleStep3Press} /> )}
-        </Form>
-
-        {/* Modal for Camera or Gallery Selection */}
-        <Modal transparent={true} visible={showModal} animationType="slide">
-          <ModalOverlay />
-          <ModalContent>
-            <ModalOption onPress={() => pickImage("camera")}>
-              <OptionText>Camera</OptionText>
-            </ModalOption>
-            <ModalOption onPress={() => pickImage("gallery")}>
-              <OptionText>Gallery</OptionText>
-            </ModalOption>
-            <CloseButton onPress={() => setShowModal(false)}>
-              <Text style={{ color: "#fff" }}>Cancel</Text>
-            </CloseButton>
-          </ModalContent>
-        </Modal>
-      </Container>
-    </DismissKeyboardView>
+            </ModalHeader>
+            
+            <View style={{ maxHeight: 300, minHeight: 200 }}>
+              <FlatList
+                data={filteredOptions || []}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => {
+                  const isSelected = selectedItems.includes(item);
+                  const selectionIndex = selectedItems.indexOf(item);
+                  
+                  return (
+                    <Option onPress={() => onSelect(item)} style={{
+                      backgroundColor: isSelected ? '#f0f0ff' : '#fff'
+                    }}>
+                      <OptionText style={{
+                        color: isSelected ? '#1c1c88' : '#333333',
+                        fontWeight: isSelected ? 'bold' : 'normal'
+                      }}>
+                        {item}
+                      </OptionText>
+                      {allowMultiple && isSelected && (
+                        <SelectionBadge>
+                          <SelectionNumber>{selectionIndex + 1}</SelectionNumber>
+                        </SelectionBadge>
+                      )}
+                      {!allowMultiple && isSelected && (
+                        <Icon name="check" size={16} color="#1c1c88" />
+                      )}
+                    </Option>
+                  );
+                }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+                style={{ flex: 1 }}
+                ListEmptyComponent={
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#999', fontSize: 16 }}>
+                      {searchText ? 'No results found' : 'Loading...'}
+                    </Text>
+                  </View>
+                }
+              />
+            </View>
+            
+            <View style={{ paddingTop: 15, borderTopWidth: 1, borderTopColor: "#eee" }}>
+              <CloseButton onPress={() => onClose()}>
+                <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>
+                  {allowMultiple ? 'Done' : 'Cancel'}
+                </Text>
+              </CloseButton>
+            </View>
+          </ModalContentBottom>
+        </KeyboardAvoidingView>
+      </ModalOverlay>
+    </Modal>
   );
 };
 
 export default Register2;
 
-// Styled Components
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fc;
+  background-color: #FFFFFF;
+`;
+
+const ProgressHeader = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  padding: 15px 20px 5px 20px;
 `;
 
-const ImageContainer = styled.View`
-  position: absolute;
-  top: 0;
-  width: ${screenWidth}px;
-  height: 300px;
+const StepText = styled.Text`
+  font-size: 14px;
+  color: #8c8c8c;
 `;
 
-const AirplaneImage = styled.Image`
-  width: ${screenWidth}px;
-  height: 300px;
-  margin-bottom: 20px;
-  position: absolute;
-  top: 0;
+const StepPercentage = styled.Text`
+  font-size: 14px;
+  color: #000000;
 `;
 
-const Overlay = styled.View`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+const ProgressBarContainer = styled.View`
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  width: 90%;
+  margin: 10px 20px;
+  overflow: hidden;
 `;
 
-const HeadingText = styled.Text`
-  position: absolute;
-  top: 100px;
-  margin-left: 20px;
-  margin-bottom: 30px;
-  font-size: 44px;
+const ProgressBarFill = styled.View<{ widthPercentage: number }>`
+  height: 100%;
+  width: ${(props) => props.widthPercentage}%;
+  background-color: #1c1c88;
+`;
+
+const SectionTitle = styled.Text`
+  font-size: 24px;
   font-weight: bold;
-  color: #fff;
+  color: #1c1c88;
+  margin: 0px 20px 5px 20px;
 `;
 
-const BlueText = styled.Text`
-  color: #5dcbcf;
+const Subtitle = styled.Text`
+  font-size: 16px;
+  color: #5c5c5c;
+  margin: 0 20px 20px 20px;
 `;
 
-const Form = styled.View`
-  margin-top: -10px;
-  width: 80%;
-  max-width: 400px;
-  align-items: center;
+const GroupLabel = styled.Text`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1c88;
+  margin: 8px 20px 4px 20px;
 `;
 
 const InputContainer = styled.View`
   flex-direction: row;
   align-items: center;
-  width: 100%;
-  height: 60px;
+  width: 90%;
+  height: 50px;
   background-color: #ffffff;
-  border-radius: 10px;
-  padding-horizontal: 10px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  padding-horizontal: 12px;
+  margin: 6px auto;
 `;
 
 const StyledIconEmail = styled(Icon)`
@@ -334,58 +531,130 @@ const StyledIconEmail = styled(Icon)`
 
 const Input = styled.TextInput`
   flex: 1;
-  height: 60px;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 15px;
+  height: 100%;
   font-size: 16px;
-  color: #000;
-  background-color: #ffffff;
+  color: #000000;
 `;
 
-const Thumbnail = styled.Image`
-  width: 40px;
-  height: 40px;
-  border-radius: 5px;
+const TagsContainer = styled.View`
+  flex-direction: row;
+  flex-wrap: wrap;
+  width: 85%;
+  align-self: center;
+  margin-top: 5px;
+`;
+
+const Tag = styled.View`
+  background-color: #1c1c88;
+  border-radius: 16px;
+  padding: 6px 10px;
+  margin: 4px;
+  flex-direction: row;
+  align-items: center;
+`;
+
+const TagText = styled.Text`
+  color: #FFFFFF;
+  font-size: 14px;
+`;
+
+const TagDeleteButton = styled.TouchableOpacity`
+  margin-left: 6px;
+`;
+
+// New styled component for button container (same as Register)
+const ButtonContainer = styled.View`
+  padding: 20px;
+  background-color: #fff;
+  border-top-width: 1px;
+  border-top-color: #eee;
+`;
+
+const NextButton = styled.TouchableOpacity`
+  background-color: #1c1c88;
+  padding: 14px;
+  border-radius: 10px;
+  align-items: center;
+`;
+
+const NextButtonText = styled.Text`
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
 `;
 
 const ModalOverlay = styled.View`
   flex: 1;
-  background-color: rgba(0, 0, 0, 0.5); /* Dim the background */
+  background-color: rgba(0,0,0,0.5);
 `;
 
 const ModalContent = styled.View`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: white;
+  background-color: #FFFFFF;
   padding: 20px;
-  border-radius: 15px;
-  elevation: 5; /* Adds shadow on Android */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  max-height: 60%;
 `;
 
-const ModalOption = styled.TouchableOpacity`
-  background-color: #ffffff;
-  padding: 15px;
-  margin-bottom: 0; /* Removed margin-bottom for no gap between buttons */
-  border-radius: 10px;
-  width: 100%;
+const Option = styled.TouchableOpacity`
+  padding: 16px 10px;
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
   border-bottom-width: 1px;
-  border-bottom-color: #ddd;
+  border-bottom-color: #f0f0f0;
 `;
 
 const OptionText = styled.Text`
-  font-size: 18px;
-  color: #000;
+  font-size: 16px;
+  color: #333333;
+  flex: 1;
+`;
+
+const SelectionBadge = styled.View`
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: #1c1c88;
+  justify-content: center;
+  align-items: center;
+  margin-left: 10px;
+`;
+
+
+const SelectionNumber = styled.Text`
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: bold;
 `;
 
 const CloseButton = styled.TouchableOpacity`
-  padding: 15px;
-  background-color: red;
-  border-radius: 10px;
-  width: 100%;
+  padding: 14px 10px;
+  background-color: #DD3333;
+  border-radius: 8px;
   align-items: center;
   margin-top: 10px;
 `;
+
+const CloseText = styled.Text`
+  color: #FFFFFF;
+  font-size: 16px;
+`;
+
+const ModalContentBottom = styled.View`
+  background-color: white;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 20px;
+  elevation: 10;
+  shadow-color: #000;
+  shadow-offset: 0px -3px;
+  shadow-opacity: 0.3;
+  shadow-radius: 5px;
+`;
+
+const ModalHeader = styled.View`
+  margin-bottom: 15px;
+`;
+
+

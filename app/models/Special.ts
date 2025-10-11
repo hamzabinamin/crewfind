@@ -1,7 +1,4 @@
-type Coordinates = {
-  latitude: number;
-  longitude: number;
-};
+import { GeoPoint } from "firebase/firestore";
 
 export interface Special {
     id: string;
@@ -9,8 +6,10 @@ export interface Special {
     companyImageUrl?: string;
     backgroundImageUrl?: string;
     dealExpiration: string;
+    dealDescription: string;
+    phoneNumber: string;
+    companyCoordinates: GeoPoint;
     dealType: string;
-    location: Coordinates;
     createdAt: Date;
     updatedAt: Date;
   }

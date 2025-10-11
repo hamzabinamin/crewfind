@@ -1,357 +1,201 @@
-import { Dimensions, Alert, Modal, FlatList, TouchableOpacity, Text } from "react-native";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { View, TouchableOpacity, ScrollView, SafeAreaView, Platform } from "react-native";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import styled from "styled-components/native";
-import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
-import Icon from "react-native-vector-icons/FontAwesome";
-import { useRouter,  useLocalSearchParams } from "expo-router";
-import { User } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
-import DismissKeyboardView from '../../../components/DismissKeyboardView';
-import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../../FirebaseConfig";
+import { Ionicons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
 
-// Static list of countries (simplified for the example)
-const countries = [
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", "Austria",
-  "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan",
-  "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia",
-  "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros", "Congo", "Costa Rica",
-  "Croatia", "Cuba", "Cyprus", "Czech Republic", "Democratic Republic of the Congo", "Denmark", "Djibouti", "Dominica", "Dominican Republic",
-  "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia", "Fiji", "Finland",
-  "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau",
-  "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Israel", "Italy",
-  "Ivory Coast", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", "Korea (North)", "Korea (South)", "Kuwait",
-  "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg",
-  "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", "Mauritius", "Mexico",
-  "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru",
-  "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Norway", "Oman", "Pakistan",
-  "Palau", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia",
-  "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe",
-  "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia",
-  "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", "Syria", "Taiwan", "Tajikistan",
-  "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
-  "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City",
-  "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe"
-];
-
-const screenWidth = Dimensions.get("window").width;
-
-const Register = () => {
-  const [name, setName] = useState("");
-  const [surname, setSurname] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [base, setBase] = useState(""); // This field will now trigger the modal
-  const [nationality, setNationality] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+export default function Register() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const cameFromSettings = params.cameFromSettings === "true";
-  console.log("Params", params);
-  console.log("cameFromSettings", cameFromSettings);
+  const { cameFromLogin } = useLocalSearchParams();
+  const isFromLogin = cameFromLogin === "true";
+  const [selectedRole, setSelectedRole] = useState<"Pilot" | "Cabin Crew" | null>(null);
 
-  useEffect(() => {
-    console.log("Inside Register's useEffect");
-    const fetchUserFromStorage = async () => {
-      const storedUser = await UtilFunctions.getUser();
-      console.log("Stored User: ", storedUser);
-      if (storedUser) {
-        setUser(storedUser);
-        updateFieldsForEdit(storedUser);
-      }
-    };
-    fetchUserFromStorage();
-  }, []);
-
-  const updateFieldsForEdit = (user: User) => {
-    setName(user.name);
-    setSurname(user.surName);
-    setEmail(user.email);
-    setBase(user.base);
-    setNationality(user.nationality);
-  };
-
-  const isEmailValid = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const handleStep1Press = async () => {
-    if (!name || !surname || !email || (!password && !cameFromSettings) || !base || !nationality) {
-      Alert.alert("Validation Error", "All fields are required!");
-      return;
+  const handleNext = () => {
+    if (selectedRole) {
+      router.push({
+        pathname: "./Register1",
+        params: {cameFromLogin: isFromLogin ? "true" : "false", role: selectedRole },
+      });
     }
-
-    if (!isEmailValid(email)) {
-      Alert.alert("Validation Error", "Please enter a valid email address!");
-      return;
-    }
-
-    if (password.length < 8 && !cameFromSettings) {
-      Alert.alert("Validation Error", "Password must be at least 8 characters long!");
-      return;
-    }
-
-    if(user) {
-      user.name = name;
-      user.surName = surname;
-      user.email = email;
-      user.password = password;
-      user.base = base;
-      user.nationality = nationality; 
-      
-      if(cameFromSettings) {
-        try {
-          setLoading(true);
-          const userRef = doc(db, "Users", user.id); // Adjust the collection name as needed
-          await updateDoc(userRef, {
-            name,
-            surName: surname,
-            email,
-            base,
-            nationality,
-          });
-
-          router.push({
-            pathname: "./Register2",
-            params: { 
-              user: JSON.stringify(user),  
-              ...(cameFromSettings && { cameFromSettings: "true" }) 
-            } 
-          });
-  
-        } catch (error) {
-          console.error("Error updating profile:", error);
-          Alert.alert("Error", "Failed to update profile. Please try again.");
-          return;
-        }
-        finally {
-          setLoading(false);
-        }
-      }
-      else {
-        router.push({
-          pathname: "./Register1",
-          params: { 
-            user: JSON.stringify(user)
-          } 
-        });
-      }
-    }
-  
-   /* const user = {
-      name,
-      surName: surname,
-      email,
-      password,
-      base,
-      nationality,
-    }; */
-  };
-
-  const handleCountrySelect = (country: string) => {
-    setBase(country); // Set the selected country as the base
-    setShowModal(false); // Close modal after selection
   };
 
   return (
-    <DismissKeyboardView>
-      <Container>
-        {loading && <LoadingIndicator />}
-        <ImageContainer>
-          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-          <Overlay />
-        </ImageContainer>
-        <HeadingText>
-          {cameFromSettings ? "Profile " : "Create an  "}
-          <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-        </HeadingText>
-        <Form>
-          <InputContainer>
-            <StyledIconEmail name="user" size={20} color="#999999" />
-            <Input placeholder="Name" placeholderTextColor="#999999" keyboardType="default" value={name} onChangeText={setName} />
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="user" size={20} color="#999" />
-            <Input placeholder="Surname" placeholderTextColor="#999999" keyboardType="default" value={surname} onChangeText={setSurname} />
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="envelope" size={20} color="#999999" />
-            <Input placeholder="Email" placeholderTextColor="#999999" keyboardType="email-address" value={email} onChangeText={setEmail} editable={!cameFromSettings} />
-          </InputContainer>
-          {!cameFromSettings && (
-            <InputContainer>
-              <StyledIconEmail name="lock" size={20} color="#999999" />
-              <Input 
-                placeholder="Password" 
-                placeholderTextColor="#999999" 
-                keyboardType="default" 
-                secureTextEntry={true} 
-                onChangeText={setPassword} 
-              />
-            </InputContainer>
-          )}
-          <InputContainer>
-            <StyledIconEmail name="map-marker" size={20} color="#999999" />
-            <Input
-              placeholder="Base"
-              placeholderTextColor="#999999"
-              editable={false}
-              value={base} // Show the selected base country
-            />
-            <TouchableOpacity onPress={() => setShowModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </TouchableOpacity>
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="flag" size={20} color="#999999" />
-            <Input placeholder="Nationality" placeholderTextColor="#999999" keyboardType="default" value={nationality} onChangeText={setNationality} />
-          </InputContainer>
-          <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 1 of 3"} onPress={handleStep1Press} />
-        </Form>
+    <Container>
+      <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
+      <ProgressHeader>
+        <StepText>Step 1 of 4</StepText>
+        <StepPercentage>25%</StepPercentage>
+      </ProgressHeader>
+      <ProgressBarContainer>
+        <ProgressBarFill widthPercentage={25} />
+      </ProgressBarContainer>
 
-        {/* Country Selection Modal */}
-        <Modal transparent={true} visible={showModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={countries}
-                renderItem={({ item }) => (
-                  <CountryOption onPress={() => handleCountrySelect(item)}>
-                    <CountryText>{item}</CountryText>
-                  </CountryOption>
-                )}
-                keyExtractor={(item) => item}
-                style={{ maxHeight: 300 }} // Set the max height for the modal content
-              />
-              <CloseButton onPress={() => setShowModal(false)}>
-                <Text style={{ color: "#fff" }}>Cancel</Text>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
-      </Container>
-    </DismissKeyboardView>
+      <ScrollViewContent>
+        <Heading>Choose Your Role</Heading>
+        <SubText>Select your primary aviation profession</SubText>
+
+        <RoleOption
+          selected={selectedRole === "Pilot"}
+          onPress={() => setSelectedRole("Pilot")}
+        >
+          <IconWrapper>
+            <Ionicons name="person-outline" size={20} color="#fff" />
+            {selectedRole === "Pilot" && (
+              <CheckIcon name="checkmark" size={12} color="#fff" />
+            )}
+          </IconWrapper>
+          <OptionDetails>
+            <OptionTitle>Pilot</OptionTitle>
+            <OptionSub>Captain, First Officer, etc.</OptionSub>
+          </OptionDetails>
+        </RoleOption>
+
+        <RoleOption
+          selected={selectedRole === "Cabin Crew"}
+          onPress={() => setSelectedRole("Cabin Crew")}
+        >
+          <IconWrapper>
+            <Ionicons name="people-outline" size={20} color="#fff" />
+            {selectedRole === "Cabin Crew" && (
+              <CheckIcon name="checkmark" size={12} color="#fff" />
+            )}
+          </IconWrapper>
+          <OptionDetails>
+            <OptionTitle>Cabin Crew</OptionTitle>
+            <OptionSub>Flight Attendant, Purser, etc.</OptionSub>
+          </OptionDetails>
+        </RoleOption>
+      </ScrollViewContent>
+
+      <FixedBottom>
+        <NextButton
+          disabled={!selectedRole}
+          activeOpacity={selectedRole ? 0.7 : 1}
+          style={{
+            backgroundColor: selectedRole ? "#1F2C91" : "#A6A6A6",
+          }}
+          onPress={handleNext}
+        >
+          <NextButtonText>Next</NextButtonText>
+        </NextButton>
+      </FixedBottom>
+    </Container>
   );
-};
+}
 
-export default Register;
-
-// Styled Components
-const Container = styled.View`
+const Container = styled(SafeAreaView)`
   flex: 1;
-  background-color: #f8f9fc;
+  background-color: #fff;
+`;
+
+const ProgressHeader = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  padding: 15px 20px 5px 20px;
 `;
 
-const ImageContainer = styled.View`
-  position: absolute;
-  top: 0;
-  width: ${screenWidth}px;
-  height: 300px;
+const StepText = styled.Text`
+  font-size: 14px;
+  color: #8c8c8c;
 `;
 
-const AirplaneImage = styled.Image`
-  width: ${screenWidth}px;
-  height: 300px;
-  margin-bottom: 20px;
-  position: absolute;
-  top: 0;
+const StepPercentage = styled.Text`
+  font-size: 14px;
+  color: #000000;
 `;
 
-const Overlay = styled.View`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+const ProgressBarContainer = styled.View`
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  width: 90%;
+  margin: 10px 20px;
+  overflow: hidden;
 `;
 
-const HeadingText = styled.Text`
-  position: absolute;
-  top: 100px;
-  margin-left: 20px;
-  margin-bottom: 30px;
-  font-size: 44px;
+const ProgressBarFill = styled.View<{ widthPercentage: number }>`
+  height: 100%;
+  width: ${(props) => props.widthPercentage}%;
+  background-color: #1c1c88;
+`;
+
+const ScrollViewContent = styled(ScrollView).attrs({
+  contentContainerStyle: {
+    paddingHorizontal: 20,
+    paddingBottom: 100,
+  },
+})``;
+
+const Heading = styled.Text`
+  font-size: 24px;
   font-weight: bold;
-  color: #fff;
+  color: #1c1c88;
+  margin-bottom: 5px;
 `;
 
-const BlueText = styled.Text`
-  color: #5dcbcf;
+const SubText = styled.Text`
+  font-size: 16px;
+  color: #5c5c5c;
+  margin-bottom: 30px;
 `;
 
-const Form = styled.View`
-  margin-top: 190px;
-  width: 80%;
-  max-width: 400px;
-  align-items: center;
-`;
-
-const InputContainer = styled.View`
+const RoleOption = styled.TouchableOpacity<{ selected: boolean }>`
   flex-direction: row;
   align-items: center;
-  width: 100%;
-  height: 60px;
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding-horizontal: 10px;
-  margin-bottom: 8px;
-`;
-
-const StyledIconEmail = styled(Icon)`
-  margin-right: 10px;
-`;
-
-const Input = styled.TextInput`
-  flex: 1;
-  height: 60px;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 15px;
-  font-size: 16px;
-  color: #000;
-  background-color: #ffffff;
-`;
-
-const ModalOverlay = styled.View`
-  flex: 1;
-  background-color: rgba(0, 0, 0, 0.5);
-`;
-
-const ModalContent = styled.View`
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: white;
-  padding: 20px;
-  border-radius: 15px;
-  elevation: 5;
-`;
-
-const CountryOption = styled.TouchableOpacity`
+  border-width: 1px;
+  border-color: #1c1c88;
+  border-radius: 8px;
   padding: 15px;
-  background-color: #fff;
-  border-bottom-width: 1px;
-  border-bottom-color: #ddd;
+  margin-bottom: 20px;
+  background-color: ${({ selected }) => (selected ? "#EAF0FB" : "#fff")};
 `;
 
-const CountryText = styled.Text`
-  font-size: 18px;
-  color: #000;
-`;
-
-const CloseButton = styled.TouchableOpacity`
-  padding: 15px;
-  background-color: red;
-  border-radius: 10px;
-  width: 100%;
+const IconWrapper = styled.View`
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background-color: #1c1c88;
   align-items: center;
-  margin-top: 10px;
+  justify-content: center;
+  margin-right: 15px;
+`;
+
+const CheckIcon = styled(Ionicons)`
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+`;
+
+const OptionDetails = styled.View``;
+
+const OptionTitle = styled.Text`
+  font-size: 16px;
+  font-weight: bold;
+  color: #1c1c88;
+`;
+
+const OptionSub = styled.Text`
+  font-size: 13px;
+  color: #666;
+`;
+
+const FixedBottom = styled.View`
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
+`;
+
+const NextButton = styled(TouchableOpacity)`
+  padding: 15px;
+  border-radius: 8px;
+  align-items: center;
+`;
+
+const NextButtonText = styled.Text`
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
 `;

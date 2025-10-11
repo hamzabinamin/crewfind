@@ -1,172 +1,344 @@
-import React, { useEffect, useState } from "react";
-import { FlatList, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
-import styled from "styled-components/native";
-import { useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState, useCallback } from "react";
+import { View, Text, Platform, KeyboardAvoidingView } from "react-native";
+import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { sendMessage, getOrCreateChat } from "../services/chatService";
 import { User } from "../models/User";
 import { Message } from "../models/Message";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import FastImage from "react-native-fast-image";
+import { setCurrentOpenChatId } from "../../hooks/usePushNotifications";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 
-const ChatScreen = () => {
-  const { chatId: chatIdParam, recipientId } = useLocalSearchParams();
-  const [chatId, setChatId] = useState<string | null>(Array.isArray(chatIdParam) ? chatIdParam[0] : chatIdParam);
+const MessageDetail = () => {
+  const navigation = useNavigation();
+  const {
+    chatId: chatIdParam,
+    recipientId,
+    otherParticipantName,
+    otherParticipantImage,
+  } = useLocalSearchParams();
+
+  const [chatId, setChatId] = useState<string | null>(
+    Array.isArray(chatIdParam) ? chatIdParam[0] : chatIdParam
+  );
   const [user, setUser] = useState<User | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messageText, setMessageText] = useState("");
+  const [messages, setMessages] = useState<IMessage[]>([]);
+  const [avatarsLoaded, setAvatarsLoaded] = useState(false);
 
   const chatIdStr = Array.isArray(chatId) ? chatId[0] : chatId;
-  const recipientIdStr = Array.isArray(recipientId) ? recipientId[0] : recipientId;
+  const recipientIdStr = Array.isArray(recipientId)
+    ? recipientId[0]
+    : recipientId;
+  const otherParticipantNameStr = Array.isArray(otherParticipantName)
+    ? otherParticipantName[0]
+    : otherParticipantName;
+  let otherParticipantImageStr = Array.isArray(otherParticipantImage)
+    ? otherParticipantImage[0]
+    : otherParticipantImage;
 
-  console.log("Chat ID: ", chatIdStr);
-  console.log("Recipient ID: ", recipientIdStr);
-
-  // Fetch the current user
+  // Set custom header with avatar
   useEffect(() => {
-    const fetchUserFromStorage = async () => {
+    navigation.setOptions({
+      headerTitle: () => (
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FastImage
+            source={{
+              uri:
+                otherParticipantImageStr ||
+                "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+              priority: FastImage.priority.normal,
+            }}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#1c1c88",
+              marginRight: 8,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+          />
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#000" }}>
+            {otherParticipantNameStr || "Messages"}
+          </Text>
+        </View>
+      ),
+    });
+  }, [otherParticipantNameStr, otherParticipantImageStr, navigation]);
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
       const storedUser = await UtilFunctions.getUser();
-      if (storedUser) {
-        setUser(storedUser);
-      }
+      if (storedUser) setUser(storedUser);
     };
-    fetchUserFromStorage();
+    fetchUser();
   }, []);
 
-  // Listen for real-time messages
+  // Preload avatars for faster display
   useEffect(() => {
-    if (!chatId) return;
+    const preloadAvatars = async () => {
+      const avatarUrls = [
+        otherParticipantImageStr,
+        user?.profileImage,
+      ].filter(Boolean);
+
+      if (avatarUrls.length > 0) {
+        try {
+          await FastImage.preload(
+            avatarUrls.map((uri) => ({
+              uri: uri || "",
+              priority: FastImage.priority.high,
+            }))
+          );
+          setAvatarsLoaded(true);
+        } catch (error) {
+          console.log("Avatar preload error:", error);
+          setAvatarsLoaded(true); // Still proceed even if preload fails
+        }
+      } else {
+        setAvatarsLoaded(true);
+      }
+    };
+
+    if (user) {
+      preloadAvatars();
+    }
+  }, [user, otherParticipantImageStr]);
+
+  // Listen for Firebase messages and convert to Gifted Chat format
+  useEffect(() => {
+    if (!chatIdStr) return;
+
+    setCurrentOpenChatId(chatIdStr);
 
     const q = query(
-      collection(db, "Chats", chatId as string, "Messages"),
-      orderBy("timestamp", "asc")
+      collection(db, "Chats", chatIdStr, "Messages"),
+      orderBy("timestamp", "desc") // Gifted Chat expects newest first
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Message[]);
+      const fetched = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        
+        // Convert timestamp
+        let messageDate: Date;
+        if (typeof data.timestamp === "number") {
+          messageDate = new Date(data.timestamp);
+        } else if (data.timestamp?.toDate) {
+          messageDate = data.timestamp.toDate();
+        } else {
+          messageDate = new Date();
+        }
+
+        // Convert to Gifted Chat IMessage format
+        const giftedMessage: IMessage = {
+          _id: doc.id,
+          text: data.text || "",
+          createdAt: messageDate,
+          user: {
+            _id: data.senderId || "",
+            name: data.senderId === user?.id ? "You" : otherParticipantNameStr || "User",
+            avatar:
+              data.senderId === user?.id
+                ? user?.profileImage || "https://ui-avatars.com/api/?name=You&background=1c1c88&color=fff"
+                : otherParticipantImageStr ||
+                  "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+          },
+        };
+
+        return giftedMessage;
+      });
+
+      setMessages(fetched);
     });
 
-    return () => unsubscribe(); // Cleanup the listener when unmounting
-  }, [chatId]);
+    return () => {
+      unsubscribe();
+      setCurrentOpenChatId(null);
+    };
+  }, [chatIdStr, user, otherParticipantNameStr, otherParticipantImageStr]);
 
-  // Send message handler
-  const handleSendMessage = async () => {
-    try {
-      console.log("Inside handleSendMessage");
-      console.log("User: ", user);
-      console.log("Message Text: ", messageText);
-  
-      if (!user || messageText.trim() === "") return;
-  
-      console.log("Checking if chatId exists...");
-      
-      let chatIdToUse = chatId as string;
-  
-      // If chatId is missing, create a new chat first
-      if (!chatIdToUse) {
-        if (!recipientIdStr) return;
-        console.log("Creating a new chat...");
-        
-        const newChat = await getOrCreateChat(user.id, recipientIdStr);
-        
-        if (!newChat) {
-          console.error("Failed to create a new chat");
-          return;
+  // Handle sending messages
+  const onSend = useCallback(
+    async (newMessages: IMessage[] = []) => {
+      try {
+        if (!user || newMessages.length === 0) return;
+
+        const messageText = newMessages[0].text;
+        if (messageText.trim() === "") return;
+
+        let chatIdToUse = chatId as string;
+
+        // Create chat if it doesn't exist
+        if (!chatIdToUse) {
+          if (!recipientIdStr) return;
+          const newChat = await getOrCreateChat(user.id ?? "", recipientIdStr);
+          if (!newChat) return;
+
+          chatIdToUse = newChat.id;
+          setChatId(chatIdToUse);
         }
-  
-        chatIdToUse = newChat.id;
-        setChatId(chatIdToUse); 
-        console.log("New chat created with ID:", chatIdToUse);
+
+        await sendMessage(chatIdToUse, user.id ?? "", messageText.trim());
+      } catch (error) {
+        console.error("Error sending message:", error);
       }
-  
-      console.log("Calling sendMessage");
-      await sendMessage(chatIdToUse, user.id, messageText);
-      setMessageText(""); // Clear input after sending
-    } catch (error) {
-      console.error("Error in handleSendMessage:", error);
-    }
+    },
+    [user, chatId, recipientIdStr]
+  );
+
+  // Custom bubble styling to match your original design
+  const renderBubble = (props: any) => {
+    return (
+      <Bubble
+        {...props}
+        wrapperStyle={{
+          right: {
+            backgroundColor: "#1c1c88",
+            marginRight: 8,
+            marginVertical: 4,
+          },
+          left: {
+            backgroundColor: "#E5E5EA",
+            marginLeft: 8,
+            marginVertical: 4,
+          },
+        }}
+        textStyle={{
+          right: {
+            color: "#fff",
+          },
+          left: {
+            color: "#000",
+          },
+        }}
+      />
+    );
   };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <Container>
-          <FlatList
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) =>
-              user ? (
-                <MessageContainer isOwnMessage={item.senderId === user.id}>
-                  <MessageText isOwnMessage={item.senderId === user.id}>
-                    {item.text}
-                  </MessageText>
-                </MessageContainer>
-              ) : null
-            }
-            contentContainerStyle={{ flexGrow: 1, paddingBottom: 20, paddingTop: 10 }}
-            inverted // Newest messages appear at the bottom
-          />
+  // Custom avatar rendering with FastImage for better caching
+  const renderAvatar = (props: any) => {
+    return (
+      <View style={{ marginBottom: 4, marginHorizontal: 8 }}>
+        <FastImage
+          source={{
+            uri: props.currentMessage.user.avatar,
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
+          }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: "#1c1c88",
+          }}
+          resizeMode={FastImage.resizeMode.cover}
+        />
+      </View>
+    );
+  };
 
-          <InputContainer>
-            <TextInputStyled
-              value={messageText}
-              onChangeText={setMessageText}
-              placeholder="Type a message..."
-            />
-            <SendButton onPress={handleSendMessage}>
-              <SendButtonText>Send</SendButtonText>
-            </SendButton>
-          </InputContainer>
-        </Container>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+  // Custom input toolbar
+  const renderInputToolbar = (props: any) => {
+    return (
+      <InputToolbar
+        {...props}
+        containerStyle={{
+          backgroundColor: "#fff",
+          borderTopWidth: 1,
+          borderTopColor: "#ddd",
+          paddingVertical: 4,
+          paddingHorizontal: 8,
+        }}
+        primaryStyle={{
+          alignItems: "center",
+        }}
+      />
+    );
+  };
+
+  // Custom send button
+  const renderSend = (props: any) => {
+    return (
+      <Send
+        {...props}
+        containerStyle={{
+          justifyContent: "center",
+          alignItems: "center",
+          marginRight: 4,
+          marginBottom: 5,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "#1c1c88",
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            minWidth: 60,
+            height: 40,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 14 }}>
+            Send
+          </Text>
+        </View>
+      </Send>
+    );
+  };
+
+  // Custom time display
+  const renderTime = (props: any) => {
+    return (
+      <Time
+        {...props}
+        timeTextStyle={{
+          left: { color: "#999", fontSize: 10 },
+          right: { color: "#ccc", fontSize: 10 },
+        }}
+      />
+    );
+  };
+
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
+      <GiftedChat
+        messages={messages}
+        onSend={(messages) => onSend(messages)}
+        user={{
+          _id: user.id ?? "",
+          name: "You",
+          avatar: user.profileImage || "https://ui-avatars.com/api/?name=You&background=1c1c88&color=fff",
+        }}
+        renderBubble={renderBubble}
+        renderAvatar={renderAvatar}
+        renderInputToolbar={renderInputToolbar}
+        renderSend={renderSend}
+        renderTime={renderTime}
+        placeholder="Type a message..."
+        alwaysShowSend
+        showUserAvatar
+        renderUsernameOnMessage={false}
+        renderAvatarOnTop
+        infiniteScroll
+      />
+      {Platform.OS === "android" && <KeyboardAvoidingView behavior="padding" />}
+    </View>
   );
 };
 
-export default ChatScreen;
-
-// Styled Components
-const Container = styled.View`
-  flex: 1;
-  background-color: #f5f5f5;
-`;
-
-const MessageContainer = styled.View<{ isOwnMessage: boolean }>`
-  align-self: ${({ isOwnMessage }) => (isOwnMessage ? "flex-end" : "flex-start")};
-  background-color: ${({ isOwnMessage }) => (isOwnMessage ? "#0084FF" : "#E5E5EA")};
-  padding: 10px;
-  margin: 5px;
-  border-radius: 10px;
-  max-width: 75%;
-`;
-
-const MessageText = styled.Text<{ isOwnMessage: boolean }>`
-  color: ${({ isOwnMessage }) => (isOwnMessage ? "white" : "black")};
-`;
-
-const InputContainer = styled.View`
-  flex-direction: row;
-  padding: 10px;
-  background-color: white;
-  border-top-width: 1px;
-  border-top-color: #ddd;
-`;
-
-const TextInputStyled = styled.TextInput`
-  flex: 1;
-  padding: 10px;
-  border-radius: 20px;
-  background-color: #f0f0f0;
-`;
-
-const SendButton = styled.TouchableOpacity`
-  padding: 10px;
-`;
-
-const SendButtonText = styled.Text`
-  color: blue;
-  font-weight: bold;
-`;
+export default MessageDetail;

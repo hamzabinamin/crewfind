@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import User from "../models/User";
 import { db, auth } from "../../FirebaseConfig";
 import { doc, addDoc, updateDoc, getDoc, getDocs, collection, serverTimestamp, query, where } from "firebase/firestore";
-//import { getAuth } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 
 class UtilFunctions {
@@ -42,6 +42,11 @@ class UtilFunctions {
     }
   };
 
+  static isExternalUrl = (url: string) => {
+    return url.startsWith('http://') || url.startsWith('https://');
+  };
+
+
   static fetchLogoUrl = async (imagePath: string) => {
     try {
         if (!auth.currentUser) {
@@ -60,20 +65,42 @@ class UtilFunctions {
 
   static saveUser = async (user: User) => {
     try {
-      const userJson = JSON.stringify(user);  // Convert the Player object to a string
-      await AsyncStorage.setItem('user', userJson);  // Store the player object with a key
+      const userJson = JSON.stringify(user);  // Convert the User object to a string
+      await AsyncStorage.setItem('user', userJson);  // Store the user object with a key
     } catch (error) {
       console.error("Error saving user:", error);
     }
+  };
+
+  static deleteUser = async () => {
+    try {
+      await AsyncStorage.removeItem("user"); // Remove the stored user
+      console.log("User deleted from storage");
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
+  };
+
+  static getPositionIcon = (position: string) => {
+    const pilotPositions = [
+      "Captain",
+      "First Officer",
+      "Second Officer",
+      "Private Pilot",
+    ];
+    if (pilotPositions.includes(position)) {
+      return "plane";
+    }
+    return "briefcase"; // For cabin crew or others
   };
 
   static getUser = async (): Promise<User | null> => {
     try {
       const userJson = await AsyncStorage.getItem('user');  // Get the string from AsyncStorage
       if(userJson !== null) {
-        return JSON.parse(userJson);  // Parse it into a Player object
+        return JSON.parse(userJson);  // Parse it into a User object
       } else {
-        return null;  // Return null if the player is not found
+        return null;  // Return null if the user is not found
       }
     } catch(error) {
       console.error("Error fetching user:", error);
@@ -134,20 +161,55 @@ class UtilFunctions {
     });
   };
 
+  static updateLastSeen = async () => {
+      const user = getAuth().currentUser;
+      if (user) {
+        const userRef = doc(db, "Users", user.uid);
+        try {
+          await updateDoc(userRef, {
+            lastSeen: serverTimestamp(),
+          });
+          console.log("Last seen updated");
+        } catch (error) {
+          console.error("Error updating last seen:", error);
+        }
+      }
+  };
+
+  static updateUserCoordinates = async (latitude: number, longitude: number) => {
+    const user = getAuth().currentUser;
+    if (user) {
+      const userRef = doc(db, "Users", user.uid);
+      try {
+        await updateDoc(userRef, {
+          userCoordinates: {
+            latitude,
+            longitude,
+          },
+        });
+        console.log("User coordinates updated");
+      } catch (error) {
+        console.error("Error updating coordinates:", error);
+      }
+    } else {
+      console.warn("No authenticated user found");
+    }
+  };
+
   static getLastSeenText = (lastSeen: Date | null): string => {
     if (!lastSeen) return "A while ago";
   
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - lastSeen.getTime()) / 60000); // difference in minutes
+    const diffInHours = Math.floor(diffInMinutes / 60);
   
     if (diffInMinutes < 1) return "NOW";
     if (diffInMinutes <= 15) return "15 minutes ago";
     if (diffInMinutes <= 30) return "30 minutes ago";
     if (diffInMinutes <= 60) return "1 hour ago";
-    if (diffInMinutes <= 120) return "2 hours ago";
-    if (diffInMinutes <= 180) return "3 hours ago";
-    if (diffInMinutes <= 240) return "4 hours ago";
-  
+   
+    if (diffInHours <= 12) return `${diffInHours} hours ago`;
+
     return "A while ago";
   };
 

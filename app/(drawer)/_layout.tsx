@@ -1,29 +1,48 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { View, Text, Image, StyleSheet, Alert } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Drawer } from 'expo-router/drawer';
 import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
 import type { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { User } from "../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import FastImage from "react-native-fast-image"
 import { auth } from '../../FirebaseConfig';
 import { getAuth } from 'firebase/auth';
 import { router } from "expo-router";
 
-getAuth().onAuthStateChanged((user) => {
-  if(!user) {
-    router.replace("/screens/auth/Login")
-  }
-});
-
 export default function DrawerLayout() {
+  const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
+      if (!user && isMountedRef.current) {
+        console.log("User signed out, clearing storage and redirecting.");
+        try {
+          await AsyncStorage.removeItem("user");
+          router.replace("/screens/auth/Login");
+        } catch (error) {
+          console.error("Error clearing user:", error);
+        }
+      }
+    });
+
+    return () => {
+      isMountedRef.current = false;
+      unsubscribe();
+    };
+  }, []);
+
   return (
     <Drawer
       screenOptions={{ 
         headerShown: true, 
         swipeEdgeWidth: 0, 
-        drawerActiveTintColor: "#5DCBCF", 
+        drawerActiveTintColor: "#1c1c88", 
         headerLeft: () => (
-          <DrawerToggleButton tintColor="#5DCBCF" />
+          <DrawerToggleButton tintColor="#1c1c88" />
         ) 
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -42,10 +61,20 @@ export default function DrawerLayout() {
           drawerLabel: "Airlines",
           title: "Airlines",
           headerTitleStyle: {
-            color: "#5DCBCF",
+            color: "#1c1c88",
           },
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/logo-with-text.png')}
+                style={{ width: 25, height: 25, marginRight: 8 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Airlines</Text>
+            </View>
+          ),
           headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
+            <DrawerToggleButton tintColor="#1c1c88" />
           ) 
         }}
       />
@@ -55,10 +84,20 @@ export default function DrawerLayout() {
           drawerLabel: "Blocked",
           title: "Blocked",
           headerTitleStyle: {
-            color: "#5DCBCF",
+            color: "#1c1c88",
           },
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/logo-with-text.png')}
+                style={{ width: 25, height: 25, marginRight: 8 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Blocked</Text>
+            </View>
+          ),
           headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
+            <DrawerToggleButton tintColor="#1c1c88" />
           ) 
         }}
       />
@@ -68,10 +107,20 @@ export default function DrawerLayout() {
           drawerLabel: "Friends",
           title: "Friends",
           headerTitleStyle: {
-            color: "#5DCBCF",
+            color: "#1c1c88",
           },
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/logo-with-text.png')}
+                style={{ width: 25, height: 25, marginRight: 8 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Friends</Text>
+            </View>
+          ),
           headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
+            <DrawerToggleButton tintColor="#1c1c88" />
           ) 
         }}
       />
@@ -81,10 +130,20 @@ export default function DrawerLayout() {
           drawerLabel: "Settings",
           title: "Settings",
           headerTitleStyle: {
-            color: "#5DCBCF",
+            color: "#1c1c88",
           },
+          headerTitle: () => (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Image
+                source={require('../../assets/images/logo-with-text.png')}
+                style={{ width: 25, height: 25, marginRight: 8 }}
+                resizeMode="contain"
+              />
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Settings</Text>
+            </View>
+          ),
           headerLeft: () => (
-            <DrawerToggleButton tintColor="#5DCBCF" />
+            <DrawerToggleButton tintColor="#1c1c88" />
           ) 
         }}
       />
@@ -128,11 +187,16 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     <DrawerContentScrollView {...props}>
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <Image
+        <FastImage
           source={{
-            uri: user?.profileImageUrl || "https://www.shutterstock.com/image-photo/head-shot-portrait-close-smiling-600nw-1714666150.jpg", // Replace with actual profile image URL
+            uri:
+              user?.profileImage ||
+              "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+            priority: FastImage.priority.high,
+            cache: FastImage.cacheControl.immutable,
           }}
           style={styles.profileImage}
+          resizeMode={FastImage.resizeMode.cover}
         />
         <Text style={styles.profileName}>{user?.name || "User"}</Text>
       </View>
@@ -177,5 +241,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#ddd",
     marginVertical: 10,
     marginHorizontal: 20,
-  },
+  }
 });

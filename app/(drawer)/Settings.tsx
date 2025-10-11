@@ -44,10 +44,10 @@ const Settings = () => {
   return (
     <Container>
       {loading && <LoadingIndicator />}
-      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register", params: { cameFromSettings: "true" } })}>
+      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register1", params: { cameFromSettings: "true" } })}>
         <ListText>Profile Details</ListText>
       </ListItem>
-      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register1", params: { cameFromSettings: "true" } })}>
+      <ListItem onPress={() => router.push({ pathname: "/screens/auth/Register2", params: { cameFromSettings: "true" } })}>
         <ListText>Experience</ListText>
       </ListItem>
       <ListItem onPress={() => {

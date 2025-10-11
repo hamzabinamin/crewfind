@@ -1,26 +1,108 @@
-import { Dimensions, Alert, Modal, FlatList, TouchableOpacity, Text } from "react-native";
-import React, { useState, useEffect } from "react";
+import {
+  Alert,
+  Dimensions,
+  FlatList,
+  Keyboard,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+  TextInputProps,
+} from "react-native";
+import React, { useEffect, useState } from "react";
 import styled from "styled-components/native";
-import GradientButtonWithArrow from "../../utilities/GradientButtonWithArrow";
 import Icon from "react-native-vector-icons/FontAwesome";
-import { useRouter, useLocalSearchParams } from "expo-router";
-import { User } from "../../models/User";
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
+import { User, createUser } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import DismissKeyboardView from "../../../components/DismissKeyboardView";
+import { KeyboardAwareScrollView, KeyboardAwareFlatList } from 'react-native-keyboard-aware-scroll-view';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
-const screenWidth = Dimensions.get("window").width;
+const countries = [
+    "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Aruba", "Australia",
+    "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin",
+    "Bermuda", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi",
+    "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros",
+    "Congo", "Costa Rica", "Croatia", "Cuba", "Curacao", "Cyprus", "Czech Republic", "Democratic Republic of the Congo", "Denmark", "Djibouti",
+    "Dominica", "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+    "Faroe Islands", "Fiji", "Finland", "France", "French Guiana", "Gabon", "Gambia", "Georgia", "Germany", "Ghana",
+    "Gibraltar", "Greece", "Greenland", "Grenada", "Guadeloupe", "Guatemala", "Guernsey", "Guinea", "Guinea-Bissau", "Guyana",
+    "Haiti", "Honduras", "Hong Kong", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland",
+    "Isle of Man", "Israel", "Italy", "Ivory Coast", "Jamaica", "Japan", "Jersey", "Jordan", "Kazakhstan", "Kenya",
+    "Kiribati", "Korea (North)", "Korea (South)", "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho",
+    "Liberia", "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Macau", "Madagascar", "Malawi", "Malaysia", "Maldives",
+    "Mali", "Malta", "Marshall Islands", "Martinique", "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia", "Moldova",
+    "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands",
+    "New Caledonia", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Macedonia", "Northern Cyprus", "Norway", "Oman", "Pakistan",
+    "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico",
+    "Qatar", "Republic of the Congo", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia", "Saint Pierre and Miquelon", "Saint Vincent and the Grenadines", "Samoa",
+    "San Marino", "Sao Tome and Principe", "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Sint Maarten", "Slovakia",
+    "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden",
+    "Switzerland", "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago",
+    "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", "Uruguay",
+    "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Western Sahara", "Yemen", "Zambia", "Zimbabwe"
+];
 
-const Register1 = () => {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const userString = typeof params.user === "string" ? params.user : null;
-  const [user, setUser] = useState<Partial<User>>(userString ? JSON.parse(userString) : {});
-  const [loading, setLoading] = useState(false);
-  console.log("Received User: ", user);
+const nationalities = [
+  "Afghan", "Albanian", "Algerian", "Andorran", "Angolan", "Antiguan and Barbudan", "Argentine", "Armenian", "Aruban", "Australian",
+  "Austrian", "Azerbaijani", "Bahamian", "Bahraini", "Bangladeshi", "Barbadian", "Belarusian", "Belgian", "Belizean", "Beninese",
+  "Bermudian", "Bhutanese", "Bolivian", "Bosnian and Herzegovinian", "Botswanan", "Brazilian", "Bruneian", "Bulgarian", "Burkinabé", "Burundian",
+  "Cape Verdean", "Cambodian", "Cameroonian", "Canadian", "Central African", "Chadian", "Chilean", "Chinese", "Colombian", "Comorian",
+  "Congolese", "Costa Rican", "Croatian", "Cuban", "Curaçaoan", "Cypriot", "Czech", "Congolese (Democratic Republic)", "Danish", "Djiboutian",
+  "Dominican", "Ecuadorian", "Egyptian", "Salvadoran", "Equatorial Guinean", "Eritrean", "Estonian", "Swazi", "Ethiopian",
+  "Faroese", "Fijian", "Finnish", "French", "French Guianese", "Gabonese", "Gambian", "Georgian", "German", "Ghanaian",
+  "Gibraltar", "Greek", "Greenlandic", "Grenadian", "Guadeloupean", "Guatemalan", "Channel Islander (Guernsey)", "Guinean", "Bissau-Guinean", "Guyanese",
+  "Haitian", "Honduran", "Hong Konger", "Hungarian", "Icelander", "Indian", "Indonesian", "Iranian", "Iraqi", "Irish",
+  "Manx", "Israeli", "Italian", "Ivorian", "Jamaican", "Japanese", "Channel Islander (Jersey)", "Jordanian", "Kazakh", "Kenyan",
+  "Kiribati", "North Korean", "South Korean", "Kosovan", "Kuwaiti", "Kyrgyz", "Laotian", "Latvian", "Lebanese", "Basotho",
+  "Liberian", "Libyan", "Liechtensteiner", "Lithuanian", "Luxembourgish", "Macanese", "Malagasy", "Malawian", "Malaysian", "Maldivian",
+  "Malian", "Maltese", "Marshallese", "Martinican", "Mauritanian", "Mauritian", "Mahoran", "Mexican", "Micronesian", "Moldovan",
+  "Monégasque", "Mongolian", "Montenegrin", "Moroccan", "Mozambican", "Burmese", "Namibian", "Nauruan", "Nepali", "Dutch",
+  "New Caledonian", "New Zealander", "Nicaraguan", "Nigerien", "Nigerian", "Macedonian", "Northern Cypriot", "Norwegian", "Omani", "Pakistani",
+  "Palauan", "Palestinian", "Panamanian", "Papua New Guinean", "Paraguayan", "Peruvian", "Filipino", "Polish", "Portuguese", "Puerto Rican",
+  "Qatari", "Congolese (Republic)", "Romanian", "Russian", "Rwandan", "Kittitian and Nevisian", "Saint Lucian", "Saint-Pierrais and Miquelonnais", "Vincentian", "Samoan",
+  "San Marinese", "São Toméan", "Saudi", "Senegalese", "Serbian", "Seychellois", "Sierra Leonean", "Singaporean", "Sint Maartener", "Slovak",
+  "Slovene", "Solomon Islander", "Somali", "South African", "South Sudanese", "Spanish", "Sri Lankan", "Sudanese", "Surinamese", "Swedish",
+  "Swiss", "Syrian", "Taiwanese", "Tajik", "Tanzanian", "Thai", "Timorese", "Togolese", "Tongan", "Trinidadian and Tobagonian",
+  "Tunisian", "Turkish", "Turkmen", "Tuvaluan", "Ugandan", "Ukrainian", "Emirati", "British", "American", "Uruguayan",
+  "Uzbek", "Ni-Vanuatu", "Vatican", "Venezuelan", "Vietnamese", "Sahrawi", "Yemeni", "Zambian", "Zimbabwean"
+];
 
+const positions = [
+    "Captain", "First Officer", "Second Officer", "Cabin Crew", "Private Pilot"
+];
+
+const sexes = ["Male", "Female"];
+const relationshipStatuses = ["Single", "Married", "Unspecified"];
+
+interface InputFieldProps extends TextInputProps {
+  label: string;
+  icon: string;
+  disabled?: boolean;
+}
+
+interface DropdownFieldProps {
+  label: string;
+  value: string;
+  icon: string;
+  onPress: () => void;
+}
+
+const Register = () => {
+  const [name, setName] = useState("");
+  const [surname, setSurname] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [base, setBase] = useState("");
+  const [nationality, setNationality] = useState("");
   const [position, setPosition] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [age, setAge] = useState("");
@@ -28,28 +110,36 @@ const Register1 = () => {
   const [relationshipStatus, setRelationshipStatus] = useState("");
   const [hobbies, setHobbies] = useState("");
 
-  // State for showing modals
-  const [showPositionModal, setShowPositionModal] = useState(false);
-  const [showSexModal, setShowSexModal] = useState(false);
-  const [showRelationshipModal, setShowRelationshipModal] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<"base" | "nationality" | "position" | "sex" | "relationship">("base");
+  const [searchText, setSearchText] = useState("");
+  const [filteredOptions, setFilteredOptions] = useState<string[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // List of options for Position, Sex, Relationship Status
-  const positionOptions = [
-    "Captain", "First Officer", "Second Officer", "Cabin Crew", "Private Pilot"
-  ];
+  const router = useRouter();
+  const navigation = useNavigation();
+  const { cameFromLogin, cameFromSettings, role  } = useLocalSearchParams();
+  const isFromSettings = cameFromSettings === "true";
+  const isFromLogin = cameFromLogin === "true";
 
-  const sexOptions = ["Male", "Female"];
-  const relationshipOptions = ["Single", "Married", "Unspecified"];
-  const cameFromSettings = params.cameFromSettings === "true";
-  console.log("Params Register1", params);
-  console.log("cameFromSettings", cameFromSettings);
+  console.log('Route params:', { isFromSettings, isFromLogin, role });
 
   useEffect(() => {
-    console.log("Inside Register's useEffect");
+    if (role) {
+      if (role === "Cabin Crew") {
+        setPosition("Cabin Crew");
+      } else if (role === "Pilot") {
+        // Set to first pilot option (Captain)
+        setPosition("Captain");
+      }
+    }
+  }, [role]);
+
+  useEffect(() => {
     const fetchUserFromStorage = async () => {
       const storedUser = await UtilFunctions.getUser();
-      console.log("Stored User: ", storedUser);
-      if (storedUser) {
+      if (storedUser && (isFromSettings || isFromLogin)) {
         setUser(storedUser);
         updateFieldsForEdit(storedUser);
       }
@@ -57,31 +147,104 @@ const Register1 = () => {
     fetchUserFromStorage();
   }, []);
 
-  const updateFieldsForEdit = (user: User) => {
-    setPosition(user.position);
-    setCompanyName(user.companyName);
-    setAge(user.age.toString());
-    setSex(user.sex);
-    setRelationshipStatus(user.relationshipStatus);
-    console.log("Hobbies here: ", user.hobbies);
-    console.log("I/B");
-    console.log("After format: ", user.hobbies.join(", "));
-    if(user?.hobbies) {
-      setHobbies(user.hobbies.join(", ")); // Ensure consistent format
+  useEffect(() => {
+    let options: string[] = [];
+    switch (modalType) {
+      case "base":
+        options = countries;
+        break;
+      case "nationality":
+        options = nationalities;
+        break;
+      case "position":
+        options = positions;
+        break;
+      case "sex":
+        options = sexes;
+        break;
+      case "relationship":
+        options = relationshipStatuses;
+        break;
     }
+
+    if (options && options.length > 0) {
+      const filtered = options.filter((item) =>
+        item.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredOptions(filtered);
+    } else {
+      setFilteredOptions([]); // Fallback to empty array
+    }
+  }, [searchText, modalType]);
+
+   useEffect(() => {
+    let headerTitle = "Create Account";
+
+    if (isFromLogin) {
+      headerTitle = "Complete Your Profile";
+    }
+    else if (isFromSettings) {
+      headerTitle = "Profile Management";
+    }
+    navigation.setOptions({
+      headerTitle: headerTitle
+    });
+  }, [navigation, isFromSettings, isFromLogin]);
+
+  const updateFieldsForEdit = (user: User) => {
+    setName(user.name);
+    setSurname(user.surName);
+    setEmail(user.email);
+    setBase(user.base);
+    setNationality(user.nationality);
+    if (!role) {
+      setPosition(user.position || "");
+    }
+    setCompanyName(user.companyName || "");
+    setAge(user.age?.toString() || "");
+    setSex(user.sex || "");
+    setRelationshipStatus(user.relationshipStatus || "");
+    setHobbies(user.hobbies.join(", "));
   };
 
-  const handleStep2Press = async () => {
-    if (!position || !companyName || !age || !sex || !relationshipStatus || !hobbies) {
-      Alert.alert("Validation Error", "All fields are required.");
+  const isEmailValid = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleNext = async () => {
+    console.log("Inside handleNext");
+    console.log(name);
+    console.log(surname); 
+    console.log(email); 
+    console.log(base); 
+    console.log(nationality); 
+    console.log(position);
+    console.log(companyName); 
+    console.log(age);
+    console.log(sex); 
+    console.log(relationshipStatus);
+    console.log(hobbies);
+
+    if (
+      !name || !surname || !email || (!password && !isFromSettings && !isFromLogin) || !base || !nationality || !position ||
+      !companyName || !age || !sex || !relationshipStatus || !hobbies
+    ) {
+      Alert.alert("Validation Error", "All fields are required!");
       return;
     }
 
-    const parsedAge = parseInt(age, 10);
-    if (isNaN(parsedAge) || parsedAge <= 0) {
-      Alert.alert("Validation Error", "Please enter a valid age.");
+    if (!isEmailValid(email)) {
+      Alert.alert("Validation Error", "Please enter a valid email address!");
       return;
     }
+
+    if (!isFromSettings && !isFromLogin && password.length < 8) {
+      Alert.alert("Validation Error", "Password must be at least 8 characters long!");
+      return;
+    }
+
+    if (isNaN(Number(age)) || Number(age) <= 0) {
+      Alert.alert("Validation Error", "Age must be a positive number.");
+      return;
+    } 
 
     let sanitizedSex = sex.trim().toLowerCase();
     if (sanitizedSex === "male" || sanitizedSex === "female") {
@@ -92,11 +255,11 @@ const Register1 = () => {
     }
 
     const sanitizedHobbies = hobbies.trim();
-    if (sanitizedHobbies.length > 300) {
-      Alert.alert("Validation Error", "Hobbies must be less than 300 characters.");
+    if (sanitizedHobbies.length > 100) {
+      Alert.alert("Validation Error", "Hobbies must be less than 100 characters.");
       return;
     }
-
+    
     if (sanitizedHobbies.endsWith(",") || sanitizedHobbies.includes(",,")) {
       Alert.alert(
         "Validation Error",
@@ -105,312 +268,470 @@ const Register1 = () => {
       return;
     }
 
-    if(user) {
-      user.position = position;
-      user.companyName = companyName;
-      user.age = parsedAge;
-      user.sex = sanitizedSex;
-      user.relationshipStatus = relationshipStatus;
-      user.hobbies = sanitizedHobbies ? sanitizedHobbies.split(",").map((hobby) => hobby.trim()) : [];
+    const userData = {
+      name,
+      surName: surname,
+      email,
+      password,
+      base,
+      nationality,
+      position,
+      companyName,
+      age: Number(age),
+      sex,
+      relationshipStatus,
+      hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
+    };
 
-      if(cameFromSettings) {
-        try {
-          setLoading(true);
-          if (user?.id) {
-            const userRef = doc(db, "Users", user.id);
-            await updateDoc(userRef, {
-              position,
-              companyName,
-              age: parsedAge,
-              sex: sanitizedSex,
-              relationshipStatus,
-              hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim()),
-            });
+    const userDataWithoutPW = {
+      name,
+      surName: surname,
+      email,
+      base,
+      nationality,
+      position,
+      companyName,
+      age: Number(age),
+      sex,
+      relationshipStatus,
+      hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
+    };
 
-            UtilFunctions.saveUser(user as User);
+    try {
+      setLoading(true);
+      if ((isFromSettings || isFromLogin) && user && user.id) {
+        const userRef = doc(db, "Users", user.id);
 
-            router.push({
-              pathname: "./Register3",
-              params: { 
-                user: JSON.stringify(user),  
-                ...(cameFromSettings && { cameFromSettings: "true" }) 
-              } 
-            });
-          }
-        } catch (error) {
-          console.error("Error updating profile:", error);
-          Alert.alert("Error", "Failed to update profile. Please try again.");
-          return;
+        await updateDoc(userRef, userDataWithoutPW);
+
+        const storedUser = await UtilFunctions.getUser();
+        if (storedUser) {
+          storedUser.name = name
+          storedUser.surName = surname,
+          storedUser.base = base,
+          storedUser.nationality = nationality,
+          storedUser.position = position,
+          storedUser.companyName = companyName,
+          storedUser.age = Number(age),
+          storedUser.sex = sex,
+          storedUser.relationshipStatus = relationshipStatus,
+          storedUser.hobbies = hobbies ? hobbies.split(",").map((hobby) => hobby.trim()) : [];
+          UtilFunctions.saveUser(storedUser);
         }
-        finally {
-          setLoading(false);
+
+        if (isFromSettings) {
+          router.push({
+            pathname: "./Register3",
+            params: {
+              user: JSON.stringify({ ...user, ...userData }),
+              cameFromSettings: isFromSettings ? "true" : "false",
+            },
+          });
         }
-      }
-      else {
-        // Navigate to Register2
+        else if (isFromLogin) {
+          router.push({
+            pathname: "./Register2",
+            params: {
+              user: JSON.stringify({ ...user, ...userData }),
+              cameFromLogin: isFromLogin ? "true" : "false",
+            },
+          });
+        }
+      } else {
+        const newUser = createUser();
+        Object.assign(newUser, userData);
         router.push({
           pathname: "./Register2",
-          params: { user: JSON.stringify(user) },
+          params: { user: JSON.stringify(newUser) },
         });
       }
+    } catch (err) {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  const openDropdown = (type: typeof modalType) => {
+    setModalType(type);
+    setSearchText("");
+    setModalVisible(true);
+  };
+
+  const handleSelect = (value: string) => {
+    switch (modalType) {
+      case "base": setBase(value); break;
+      case "nationality": setNationality(value); break;
+      case "position": setPosition(value); break;
+      case "sex": setSex(value); break;
+      case "relationship": setRelationshipStatus(value); break;
+    }
+    setModalVisible(false);
+  };
+
   return (
-    <DismissKeyboardView>
-      <Container>
-        {loading && <LoadingIndicator />}
-        <ImageContainer>
-          <AirplaneImage source={require("../../../assets/images/airplane-login.jpg")} resizeMode="cover" />
-          <Overlay />
-        </ImageContainer>
-        <HeadingText>
-        {cameFromSettings ? "Experience " : "Create an  "}
-        <BlueText>{cameFromSettings ? "Management!" : "Account!"}</BlueText>
-        </HeadingText>
-        <Form>
-          <InputContainer>
-            <StyledIconEmail name="briefcase" size={20} color="#999999" />
-            <Input
-              placeholder="Position"
-              placeholderTextColor="#999999"
-              keyboardType="default"
-              value={position}
-              editable={false}
-            />
-            <TouchableOpacity onPress={() => setShowPositionModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </TouchableOpacity>
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="id-badge" size={20} color="#999999" />
-            <Input
-              placeholder="Company Name"
-              placeholderTextColor="#999999"
-              keyboardType="default"
-              onChangeText={setCompanyName}
-              value={companyName}
-            />
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="calendar" size={20} color="#999999" />
-            <Input
-              placeholder="Age"
-              placeholderTextColor="#999999"
-              keyboardType="numeric"
-              onChangeText={setAge}
+    <Container>
+      {loading && <LoadingIndicator />}
+      <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
+      
+      {!isFromSettings && (
+        <>
+          <ProgressHeader>
+            <StepText>Step 2 of 4</StepText>
+            <StepPercentage>50%</StepPercentage>
+          </ProgressHeader>
+          <ProgressBarContainer>
+            <ProgressBarFill widthPercentage={50} />
+          </ProgressBarContainer>
+        </>
+      )}
+
+      {/* Use KeyboardAwareScrollView instead of regular ScrollView with KeyboardAvoidingView */}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }} // Increased padding for button space
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraHeight={Platform.OS === 'ios' ? 20 : 0}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 0}
+      >
+        <SectionTitle isFromSettings={isFromSettings}>Personal Information</SectionTitle>
+        <Subtitle>Tell us about yourself</Subtitle>
+
+        <InputRow>
+          <HalfInput style={{ marginLeft: -10 }}>
+            <Label style={{ marginLeft: 8 }}>Name</Label>
+            <InputField label="First name" value={name} onChangeText={setName} icon="user" />
+          </HalfInput>
+          <HalfInput style={{ marginRight: -10 }}>
+            <Label style={{ marginLeft: 8 }}>Surname</Label>
+            <InputField label="Last name" value={surname} onChangeText={setSurname} icon="user" />
+          </HalfInput>
+        </InputRow>
+
+        <Label>Email</Label>
+        <InputField 
+          label="your.email@example.com" 
+          value={email} 
+          onChangeText={setEmail} 
+          icon="envelope" 
+          editable={!isFromSettings && !isFromLogin} 
+          disabled={isFromSettings || isFromLogin} 
+          style={isFromSettings || isFromLogin ? { backgroundColor: '#f5f5f5', color: '#999' } : {}} 
+        />
+
+        {(!isFromSettings && !isFromLogin) && (
+          <>
+            <Label>Password</Label>
+            <InputField label="Enter password" secureTextEntry value={password} onChangeText={setPassword} icon="lock" />
+          </>
+        )}
+
+        <Label>Base (Country)</Label>
+        <DropdownField label="Select your base country" value={base} icon="map-marker" onPress={() => openDropdown("base")} />
+
+        <Label>Nationality</Label>
+        <DropdownField label="Select your nationality" value={nationality} icon="map-marker" onPress={() => openDropdown("nationality")} />
+
+        <Label>Position</Label>
+        <DropdownField label="Select Position" value={position} icon="briefcase" onPress={() => openDropdown("position")} />
+
+        <Label>Company Name</Label>
+        <InputField label="Enter airline/company name" value={companyName} onChangeText={setCompanyName} icon="building" />
+        
+        <InputRow>
+          <HalfInput style={{ marginLeft: -10 }}>
+            <Label style={{ marginLeft: 8 }}>Age</Label>
+            <InputField
+              label="25"
               value={age}
+              onChangeText={setAge}
+              keyboardType="numeric"
+              icon="calendar"
             />
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="mars" size={20} color="#999999" />
-            <Input
-              placeholder="Sex"
-              placeholderTextColor="#999999"
+          </HalfInput>
+
+          <HalfInput style={{ marginRight: -10 }}>
+            <Label style={{ marginLeft: 8 }}>Sex</Label>
+            <DropdownField
+              label="Select"
               value={sex}
-              editable={false}
+              icon="venus-mars"
+              onPress={() => openDropdown("sex")}
             />
-            <TouchableOpacity onPress={() => setShowSexModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </TouchableOpacity>
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="users" size={20} color="#999999" />
-            <Input
-              placeholder="Relationship Status"
-              placeholderTextColor="#999999"
-              value={relationshipStatus}
-              editable={false}
-            />
-            <TouchableOpacity onPress={() => setShowRelationshipModal(true)}>
-              <Icon name="caret-down" size={20} color="#999999" />
-            </TouchableOpacity>
-          </InputContainer>
-          <InputContainer>
-            <StyledIconEmail name="paint-brush" size={20} color="#999999" />
-            <Input
-              placeholder="Hobbies (e.g., Reading, Swimming)"
-              placeholderTextColor="#999999"
-              keyboardType="default"
-              onChangeText={setHobbies}
-              value={hobbies}
-            />
-          </InputContainer>
-          <GradientButtonWithArrow title={cameFromSettings ? "Save and Continue" : "Step 2 of 3"} onPress={handleStep2Press} />
-        </Form>
+          </HalfInput>
+        </InputRow>
 
-        {/* Position Modal */}
-        <Modal transparent={true} visible={showPositionModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={positionOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => { setPosition(item); setShowPositionModal(false); }}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowSexModal(false)}>
-                <Text style={{ color: "#fff" }}>Cancel</Text>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
+        <Label>Relationship Status</Label>
+        <DropdownField label="Select Status" value={relationshipStatus} icon="heart" onPress={() => openDropdown("relationship")} />
 
-        {/* Sex Modal */}
-        <Modal transparent={true} visible={showSexModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={sexOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => { setSex(item); setShowSexModal(false); }}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowSexModal(false)}>
-                <Text style={{ color: "#fff" }}>Cancel</Text>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
+        <Label>Hobbies (max 100 characters)</Label>
+        <InputField
+          label="This will appear on your profile..."
+          value={hobbies}
+          onChangeText={setHobbies}
+          icon="star"
+          maxLength={100}
+        />
+        <CharacterLimit>{`${hobbies.length}/100 characters`}</CharacterLimit>
+      </KeyboardAwareScrollView>
 
-        {/* Relationship Status Modal */}
-        <Modal transparent={true} visible={showRelationshipModal} animationType="slide">
-          <ModalOverlay>
-            <ModalContent>
-              <FlatList
-                data={relationshipOptions}
-                renderItem={({ item }) => (
-                  <Option onPress={() => { setRelationshipStatus(item); setShowRelationshipModal(false); }}>
-                    <OptionText>{item}</OptionText>
-                  </Option>
-                )}
-                keyExtractor={(item) => item}
-              />
-              <CloseButton onPress={() => setShowSexModal(false)}>
-                <Text style={{ color: "#fff" }}>Cancel</Text>
-              </CloseButton>
-            </ModalContent>
-          </ModalOverlay>
-        </Modal>
-      </Container>
-    </DismissKeyboardView>
+      {/* Fixed button with safe area */}
+      <ButtonContainer>
+        <NextButton onPress={handleNext}>
+          <NextButtonText>{(isFromSettings) ? "Step 1 of 2" : "Next"}</NextButtonText>
+        </NextButton>
+      </ButtonContainer>
+
+      {/* Dropdown Modal */}
+      <Modal transparent visible={modalVisible} animationType="slide">
+        <ModalOverlay>
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={{ flex: 1 }} />
+          </TouchableWithoutFeedback>
+          
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 0 }}
+          >
+            <ModalContentBottom>
+              <ModalHeader>
+                <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 15, textAlign: "center", color: "#1c1c88" }}>
+                  Select {modalType === "base" ? "Country" : modalType === "nationality" ? "Nationality" : modalType === "position" ? "Position" : modalType === "sex" ? "Sex" : "Relationship Status"}
+                </Text>
+                
+                <TextInput
+                  placeholder="Search..."
+                  placeholderTextColor="#888"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                  style={{ 
+                    padding: 12, 
+                    borderWidth: 1, 
+                    borderColor: "#ddd", 
+                    borderRadius: 8,
+                    backgroundColor: "#f9f9f9",
+                    fontSize: 16
+                  }}
+                />
+              </ModalHeader>
+              
+              <View style={{ maxHeight: 300, minHeight: 200 }}>
+                <FlatList
+                  data={filteredOptions || []}
+                  renderItem={({ item }) => (
+                    <CountryOption onPress={() => handleSelect(item)}>
+                      <CountryText>{item}</CountryText>
+                    </CountryOption>
+                  )}
+                  keyExtractor={(item) => item}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={true}
+                  style={{ flex: 1 }}
+                  ListEmptyComponent={
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                      <Text style={{ color: '#999', fontSize: 16 }}>
+                        {searchText ? 'No results found' : 'Loading...'}
+                      </Text>
+                    </View>
+                  }
+                />
+              </View>
+              
+              <View style={{ paddingTop: 15, borderTopWidth: 1, borderTopColor: "#eee" }}>
+                <CloseButton onPress={() => setModalVisible(false)}>
+                  <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>Cancel</Text>
+                </CloseButton>
+              </View>
+            </ModalContentBottom>
+          </KeyboardAvoidingView>
+        </ModalOverlay>
+      </Modal>
+
+    </Container>
   );
 };
 
-export default Register1;
+const InputField: React.FC<InputFieldProps> = ({ label, icon, disabled, ...props }) => (
+  <InputContainer style={disabled ? { backgroundColor: '#f5f5f5' } : {}}>
+    <StyledIcon name={icon} size={20} color="#999999" />
+    <Input placeholder={label} placeholderTextColor="#999999" {...props} />
+  </InputContainer>
+);
 
-// Styled Components
+const DropdownField: React.FC<DropdownFieldProps> = ({ label, value, icon, onPress }) => (
+  <TouchableOpacity onPress={onPress}>
+    <InputContainer>
+      <StyledIcon name={icon} size={20} color="#999999" />
+      <Input
+        placeholder={label}
+        placeholderTextColor="#999999"
+        editable={false}
+        value={value}
+        pointerEvents="none"
+      />
+      <Icon name="caret-down" size={20} color="#999999" />
+    </InputContainer>
+  </TouchableOpacity>
+);
+
+export default Register;
+
+// Updated styled components
 const Container = styled.View`
   flex: 1;
-  background-color: #f8f9fc;
+  background-color: #FFFFFF;
+`;
+
+const ProgressHeader = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  padding: 15px 20px 5px 20px;
 `;
 
-const ImageContainer = styled.View`
-  position: absolute;
-  top: 0;
-  width: ${screenWidth}px;
-  height: 300px;
+const StepText = styled.Text`
+  font-size: 14px;
+  color: #8c8c8c;
 `;
 
-const AirplaneImage = styled.Image`
-  width: ${screenWidth}px;
-  height: 300px;
-  margin-bottom: 20px;
-  position: absolute;
-  top: 0;
+const StepPercentage = styled.Text`
+  font-size: 14px;
+  color: #000000;
 `;
 
-const Overlay = styled.View`
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+const ProgressBarContainer = styled.View`
+  height: 6px;
+  background-color: #e0e0e0;
+  border-radius: 3px;
+  width: 90%;
+  margin: 10px 20px;
+  overflow: hidden;
 `;
 
-const HeadingText = styled.Text`
-  position: absolute;
-  top: 100px;
-  margin-left: 20px;
-  margin-bottom: 30px;
-  font-size: 44px;
+const ProgressBarFill = styled.View<{ widthPercentage: number }>`
+  height: 100%;
+  width: ${(props) => props.widthPercentage}%;
+  background-color: #1c1c88;
+`;
+
+const SectionTitle = styled.Text<{ isFromSettings?: boolean }>`
+  font-size: 24px;
   font-weight: bold;
-  color: #fff;
+  color: #1c1c88;
+  margin: ${({ isFromSettings }) => (isFromSettings ? "5px 20px 5px 20px" : "0px 20px 5px 20px")};
 `;
 
-const BlueText = styled.Text`
-  color: #5dcbcf;
+const Subtitle = styled.Text`
+  font-size: 16px;
+  color: #5c5c5c;
+  margin: 0 20px 20px 20px;
 `;
 
-const Form = styled.View`
-  margin-top: 260px;
-  width: 80%;
-  max-width: 400px;
-  align-items: center;
+const Label = styled.Text`
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1c88;
+  margin: 8px 20px 4px 20px;
 `;
 
 const InputContainer = styled.View`
   flex-direction: row;
   align-items: center;
-  width: 100%;
-  height: 60px;
+  width: 90%;
+  height: 50px;
   background-color: #ffffff;
-  border-radius: 10px;
-  padding-horizontal: 10px;
-  margin-bottom: 8px;
+  border-radius: 12px;
+  border: 1px solid #eee;
+  padding-horizontal: 12px;
+  margin: 6px auto;
 `;
 
-const StyledIconEmail = styled(Icon)`
+const StyledIcon = styled(Icon)`
   margin-right: 10px;
 `;
 
 const Input = styled.TextInput`
   flex: 1;
-  height: 60px;
-  padding: 12px;
+  height: 100%;
   font-size: 16px;
   color: #000;
-  background-color: #ffffff;
 `;
 
-const CloseButton = styled.TouchableOpacity`
-  padding: 15px;
-  background-color: red;
+const InputRow = styled.View`
+  flex-direction: row;
+  justify-content: space-between;
+  width: 90%;
+  align-self: center;
+`;
+
+const HalfInput = styled.View`
+  width: 48%;
+`;
+
+const CharacterLimit = styled.Text`
+  font-size: 12px;
+  color: #999;
+  margin-left: 20px;
+`;
+
+// New styled component for button container
+const ButtonContainer = styled.View`
+  padding: 20px;
+  background-color: #fff;
+  border-top-width: 1px;
+  border-top-color: #eee;
+`;
+
+const NextButton = styled.TouchableOpacity`
+  background-color: #1c1c88;
+  padding: 14px;
   border-radius: 10px;
-  width: 100%;
   align-items: center;
-  margin-top: 10px;
+`;
+
+const NextButtonText = styled.Text`
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
 `;
 
 const ModalOverlay = styled.View`
   flex: 1;
-  justify-content: flex-end;
-  align-items: center;
   background-color: rgba(0, 0, 0, 0.5);
 `;
 
-const ModalContent = styled.View`
-  width: 100%;
+const CountryOption = styled.TouchableOpacity`
+  padding: 16px 10px;
   background-color: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  justify-content: center;
-  max-height: 60%;
+  border-bottom-width: 1px;
+  border-bottom-color: #f0f0f0;
 `;
 
-const Option = styled.TouchableOpacity`
+const CountryText = styled.Text`
+  font-size: 16px;
+  color: #333;
+`;
+
+const CloseButton = styled.TouchableOpacity`
   padding: 15px;
+  background-color: #DD3333;
+  border-radius: 8px;
+  align-items: center;
 `;
 
-const OptionText = styled.Text`
-  font-size: 18px;
+const ModalContentBottom = styled.View`
+  background-color: white;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  padding: 20px;
+  elevation: 10;
+  shadow-color: #000;
+  shadow-offset: 0px -3px;
+  shadow-opacity: 0.3;
+  shadow-radius: 5px;
+`;
+
+const ModalHeader = styled.View`
+  margin-bottom: 15px;
 `;

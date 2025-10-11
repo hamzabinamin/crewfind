@@ -1,49 +1,102 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, TouchableOpacity } from 'react-native';
+import { View, FlatList, TouchableOpacity } from 'react-native';
+import { useRouter } from "expo-router";
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import LoadingIndicator from "../utilities/LoadingIndicator";
+import { User } from "../models/User";
 import { Airline } from "../models/Airline";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import FastImage from "react-native-fast-image";
 import { db } from "../../FirebaseConfig";
-import { collection, doc, getDocs, getDoc } from "firebase/firestore";
+import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
 
 const Airlines = () => {
   const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [chatIds, setChatIds] = useState<{ [key: string]: string | null }>({});
+  const [user, setUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchAirlines = async () => {
-      try {
-        setLoading(true);
-        const airlinesSnapshot = await getDocs(collection(db, "Airlines"));
-        const airlinesData: Airline[] = await Promise.all(
-          airlinesSnapshot.docs.map(async (airlineDoc) => {
-            const airlineData = airlineDoc.data();
-            console.log("Fetched Airlines: ", airlineData);
-  
-            const logoUrl = airlineData.logoImage ? await UtilFunctions.fetchLogoUrl(airlineData.logoImage) : "https://via.placeholder.com/60";
-  
-            return {
-              id: airlineDoc.id,
-              name: airlineData.name,
-              logoImageUrl: logoUrl,
-              createdAt: new Date(airlineData.createdAt),
-              updatedAt: new Date(airlineData.updatedAt),
-            };
-          })
-        );
-  
-        setAirlines(airlinesData);
-      } catch (error) {
-        console.error("Error fetching jobs:", error);
-      } finally {
-        setLoading(false);
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      if (storedUser) {
+        setUser(storedUser); // triggers the next useEffect
       }
     };
-      fetchAirlines();
+    fetchUserFromStorage();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchAirlines();
+    }
+  }, [user]);
+
+  const fetchAirlines = async () => {
+    try {
+      setRefreshing(true);
+      setLoading(true);
+      const chatIdsStore: { [key: string]: string | null } = {};
+      const airlinesSnapshot = await getDocs(collection(db, "Airlines"));
+      const airlinesData: Airline[] = await Promise.all(
+        airlinesSnapshot.docs.map(async (airlineDoc) => {
+          const airlineData = airlineDoc.data();
+          console.log("Fetched Airlines: ", airlineData);
+          const logoUrl = airlineData.logoImage ? await UtilFunctions.fetchLogoUrl(airlineData.logoImage) : "https://dummyimage.com/300/fff/fff";
+
+          const airlineId = airlineDoc.id;
+
+          if (user) {
+            console.log("user (Airlines): ", user);
+            const chatQuery = query(
+              collection(db, "Chats"),
+              where("participants", "array-contains", user.id) // User must be in participants
+            );
+
+            const chatSnapshot = await getDocs(chatQuery);
+            chatIdsStore[airlineId] = null; // Default to null
+  
+            for (const chatDoc of chatSnapshot.docs) {
+              const chatData = chatDoc.data();
+              if (Array.isArray(chatData.participants) && chatData.participants.includes(airlineId)) {
+                chatIdsStore[airlineId] = chatDoc.id; // Store chat ID if found
+                console.log("chatIdsStore(Airlines): ", chatIdsStore);
+                break; // Stop searching once a chat is found
+              }
+            }
+            setChatIds(chatIdsStore);
+          }
+
+          return {
+            id: airlineDoc.id,
+            name: airlineData.name,
+            logoImageUrl: logoUrl,
+            createdAt: new Date(airlineData.createdAt),
+            updatedAt: new Date(airlineData.updatedAt),
+          };
+        })
+      );
+
+      setAirlines(airlinesData);
+      console.log("Chat Ids: ", chatIds);
+    } catch (error) {
+      console.error("Error fetching jobs:", error);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
+  };
+
+  const navigateToChat = (recipientId: string, chatId: string, otherParticipant: Airline) => {    
+    router.push({
+      pathname: "../../screens/MessageDetail",
+      params: { recipientId, chatId, otherParticipantName: otherParticipant.name, otherParticipantImage: encodeURIComponent(otherParticipant.logoImageUrl ?? "") }
+    });
+  };
 
   const filteredAirlines = airlines.filter((airline) =>
     airline.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -52,36 +105,52 @@ const Airlines = () => {
   // Render each airline row
   const renderAirline = ({ item }: { item: Airline }) => (
     <AirlineRow>
-      <AirlineLogo source={{ uri: item.logoImageUrl }} />
+      <AirlineLogo
+        source={{
+          uri: item.logoImageUrl,
+          priority: FastImage.priority.normal,
+          cache: FastImage.cacheControl.immutable,
+        }}
+        resizeMode={FastImage.resizeMode.cover}
+      />
       <AirlineName>{item.name}</AirlineName>
-      <ChatButton>
-        <Icon name="chatbubble-outline" size={24} color="#555" />
+      <ChatButton onPress={() => navigateToChat(item.id ?? "", chatIds[item.id ?? ""] ?? "", item)}>
+        <Icon name="chatbubble-ellipses-outline" size={20} color="#fff" />
       </ChatButton>
     </AirlineRow>
   );
 
   return (
     <Container>
-       {loading && <LoadingIndicator />}
-      <Heading>Airlines List</Heading>
-      <SearchBar
-        placeholder="Search Airlines"
-        placeholderTextColor="#aaa"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
-      {filteredAirlines.length === 0 ? (
-        <EmptyContainer>
-          <EmptyMessage>No airlines to show</EmptyMessage>
-        </EmptyContainer>
-      ) : (
+      {loading && <LoadingIndicator />}
+      <View style={{ backgroundColor: "#fff", padding: 15, borderRadius: 15, marginBottom: 15 }}>
+        <SearchBarContainer>
+          <Icon name="search" size={18} color="#999" style={{ marginRight: 10 }} />
+          <SearchInput
+            placeholder="Search Airlines..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </SearchBarContainer>
+
+        <InfoBox>
+          <InfoText>Browse and connect with airlines worldwide</InfoText>
+        </InfoBox>
+      </View>
       <FlatList
         data={filteredAirlines}
         renderItem={renderAirline}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+        refreshing={refreshing}
+        onRefresh={fetchAirlines}
+        ListEmptyComponent={() => (
+          <EmptyContainer>
+            <EmptyMessage>No airlines to show</EmptyMessage>
+          </EmptyContainer>
+        )}
       />
-      )}
     </Container>
   );
 };
@@ -95,31 +164,22 @@ const Container = styled.View`
   padding: 10px;
 `;
 
-const Heading = styled.Text`
-  font-size: 24px;
-  font-weight: bold;
-  color: #5DCBCF;
-  margin-bottom: 15px;
-`;
-
 const AirlineRow = styled.View`
   flex-direction: row;
   align-items: center;
   background-color: #fff;
   padding: 15px;
   border-radius: 10px;
-  margin-bottom: 10px;
-  shadow-color: #000;
-  shadow-opacity: 0.1;
-  shadow-radius: 4px;
-  elevation: 3;
+  margin-bottom: 12px;
 `;
 
-const AirlineLogo = styled.Image`
+const AirlineLogo = styled(FastImage)`
   width: 50px;
   height: 50px;
-  border-radius: 25px;
   margin-right: 15px;
+  backgroundColor: #1c1c88;
+  borderWidth: 1;
+  borderColor: #1c1c88;
 `;
 
 const AirlineName = styled.Text`
@@ -130,7 +190,39 @@ const AirlineName = styled.Text`
 `;
 
 const ChatButton = styled.TouchableOpacity`
-  padding: 10px;
+  background-color: #1c1c88;
+  padding: 12px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+`;
+
+const SearchBarContainer = styled.View`
+  flex-direction: row;
+  align-items: center;
+  background-color: #F2F3F5;
+  border-radius: 10px;
+  padding: 10px 15px;
+  margin-bottom: 10px;
+`;
+
+const SearchInput = styled.TextInput`
+  flex: 1;
+  font-size: 16px;
+`;
+
+const InfoBox = styled.View`
+  background-color: #fff;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  margin-bottom: 0px;
+`;
+
+const InfoText = styled.Text`
+  font-size: 14px;
+  color: #555;
+  text-align: center;
 `;
 
 const SearchBar = styled.TextInput`
