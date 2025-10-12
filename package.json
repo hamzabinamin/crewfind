@@ -48,6 +48,7 @@
     "expo-video": "~2.0.6",
     "expo-web-browser": "~14.0.2",
     "firebase": "^11.0.2",
+    "fs-extra": "^11.3.2",
     "haversine-distance": "^1.2.3",
     "lucide-react": "^0.544.0",
     "metro": "^0.81.0",
