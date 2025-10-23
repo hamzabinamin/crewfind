@@ -13,6 +13,7 @@ export interface Chat {
     participants: ChatParticipant[]; // Array of User/Airline IDs
     lastMessage: string;
     lastMessageSenderId: string;
+    lastMessageTimestamp?: number;
     timestamp: number;
     readTimestamps?: { [userId: string]: number };
 

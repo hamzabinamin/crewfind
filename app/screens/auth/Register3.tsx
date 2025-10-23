@@ -7,13 +7,15 @@ import {
   Platform,
   TouchableOpacity,
   View,
-  ScrollView
+  ScrollView,
+  Linking
 } from "react-native";
 import styled from "styled-components/native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User } from "../../models/User";
+import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
@@ -37,6 +39,8 @@ const Register3 = () => {
   const [backgroundImageChanged, setBackgroundImageChanged] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [imageType, setImageType] = useState<"profile" | "background" | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState(false);
   const isFromSettings = params.cameFromSettings === "true";
   const isFromLogin = params.cameFromLogin === "true";
 
@@ -122,6 +126,13 @@ const Register3 = () => {
       Alert.alert("Validation Error", "Both images are required.");
       return;
     }
+
+    // Validate terms acceptance only during login/registration
+   if (!isFromSettings && !termsAccepted) {
+      setTermsError(true);
+      return;
+    }
+    setTermsError(false);
     
     if (isFromSettings) {
       try {
@@ -153,6 +164,7 @@ const Register3 = () => {
             await updateDoc(userRef, updatedData);
             const updatedUser = { ...user, ...updatedData };
             await UtilFunctions.saveUser(updatedUser);
+            eventEmitter.emit("userProfileUpdated", updatedUser);
 
             Alert.alert("Success", "Profile updated successfully!");
           }
@@ -277,22 +289,29 @@ const Register3 = () => {
   return (
     <DismissKeyboardView style={{ flex: 1 }}>
       {loading && <LoadingIndicator />}
-      <Container>
-        <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
-        {!isFromSettings && (
-        <>
-        <ProgressHeader>
-          <StepText>Step 4 of 4</StepText>
-          <StepPercentage>100%</StepPercentage>
-        </ProgressHeader>
 
-        <ProgressBarContainer>
-          <ProgressBarFill widthPercentage={100} />
-        </ProgressBarContainer>
-        </>
+      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+        {/* Divider Line */}
+        <View style={{ height: 0.5, backgroundColor: "#ccc", width: "100%" }} />
+
+        {/* Progress section - not scrollable */}
+        {!isFromSettings && (
+          <>
+            <ProgressHeader>
+              <StepText>Step 4 of 4</StepText>
+              <StepPercentage>100%</StepPercentage>
+            </ProgressHeader>
+
+            <ProgressBarContainer>
+              <ProgressBarFill widthPercentage={100} />
+            </ProgressBarContainer>
+          </>
         )}
+
+        {/* Scrollable content starts AFTER progress */}
         <ScrollView
-          contentContainerStyle={{ paddingBottom: 180 }}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={true}
         >
           <Title isFromSettings={isFromSettings}>Add Photos</Title>
@@ -303,7 +322,9 @@ const Register3 = () => {
             {profileImage ? (
               <Preview
                 source={{
-                  uri: profileImage?.uri || "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+                  uri:
+                    profileImage?.uri ||
+                    "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
                   priority: FastImage.priority.normal,
                   cache: FastImage.cacheControl.immutable,
                 }}
@@ -329,14 +350,43 @@ const Register3 = () => {
               <Icon name="image" size={30} color="#B0B5C0" />
             )}
           </UploadBox>
+
+          {!isFromSettings && (
+            <TermsContainer>
+              <CheckboxContainer onPress={() => setTermsAccepted(!termsAccepted)}>
+                <Checkbox checked={termsAccepted}>
+                  {termsAccepted && <Icon name="check" size={14} color="#fff" />}
+                </Checkbox>
+                <TermsText>
+                  I have read, understood and agreed with these{" "}
+                  <TermsLink
+                    onPress={() =>
+                      Linking.openURL("https://www.crewfind.app/terms")
+                    }
+                  >
+                    Terms and Conditions
+                  </TermsLink>
+                </TermsText>
+              </CheckboxContainer>
+              {termsError && (
+                <ErrorText>
+                  Please check and accept the terms and conditions.
+                </ErrorText>
+              )}
+            </TermsContainer>
+          )}
         </ScrollView>
 
+        {/* Fixed button */}
         <FixedBottom>
           <NextButton onPress={handleCompleteRegistration}>
-            <NextButtonText>{isFromSettings ? "Save" : "Complete Registration"}</NextButtonText>
+            <NextButtonText>
+              {isFromSettings ? "Save" : "Complete Registration"}
+            </NextButtonText>
           </NextButton>
         </FixedBottom>
 
+        {/* Modal */}
         <Modal transparent={true} visible={showModal} animationType="slide">
           <ModalOverlay />
           <ModalContent>
@@ -351,14 +401,14 @@ const Register3 = () => {
             </CloseButton>
           </ModalContent>
         </Modal>
-      </Container>
+      </View>
     </DismissKeyboardView>
   );
 };
 
 export default Register3;
 
-const Container = styled.ScrollView`
+const Container = styled.View`
   flex: 1;
   background-color: white;
 `;
@@ -463,11 +513,10 @@ const FooterRow = styled.View`
 `;
 
 const FixedBottom = styled.View`
-  position: absolute;
-  bottom: 0;
-  width: 100%;
   padding: 20px;
   background-color: #fff;
+  border-top-width: 1px;
+  border-top-color: #eee;
 `;
 
 const NextButton = styled.TouchableOpacity`
@@ -515,4 +564,45 @@ const CloseButton = styled.TouchableOpacity`
   border-radius: 10px;
   align-items: center;
   margin-top: 10px;
+`;
+
+const TermsContainer = styled.View`
+  margin: 20px 20px -30px 20px;
+`;
+
+const CheckboxContainer = styled.TouchableOpacity`
+  flex-direction: row;
+  align-items: flex-start;
+`;
+
+const Checkbox = styled.View<{ checked: boolean }>`
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 2px solid ${(props) => (props.checked ? "#1c1c88" : "#d1d5db")};
+  background-color: ${(props) => (props.checked ? "#1c1c88" : "transparent")};
+  justify-content: center;
+  align-items: center;
+  margin-right: 10px;
+  margin-top: 2px;
+`;
+
+const TermsText = styled.Text`
+  flex: 1;
+  font-size: 14px;
+  color: #5c5c5c;
+  line-height: 20px;
+`;
+
+const TermsLink = styled.Text`
+  color: #1c1c88;
+  text-decoration: underline;
+  font-weight: 600;
+`;
+
+const ErrorText = styled.Text`
+  color: #ff0000;
+  font-size: 13px;
+  margin-top: 8px;
+  margin-left: 30px;
 `;

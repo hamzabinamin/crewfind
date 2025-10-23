@@ -5,6 +5,7 @@ import { Drawer } from 'expo-router/drawer';
 import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
 import type { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { User } from "../models/User";
+import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image"
 import { auth } from '../../FirebaseConfig';
@@ -164,6 +165,17 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     };
 
     fetchUserFromStorage();
+
+    const handleUserProfileUpdated = (updatedUser: any) => {
+      console.log("🔄 Profile updated event received:", updatedUser);
+      setUser(updatedUser);
+    };
+
+    eventEmitter.on("userProfileUpdated", handleUserProfileUpdated);
+
+    return () => {
+      eventEmitter.off("userProfileUpdated", handleUserProfileUpdated);
+    };
   }, []);
 
   const handleLogout = () => {

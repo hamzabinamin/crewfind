@@ -24,7 +24,9 @@ const processChatsSnapshot = async (snapshot: any, userId: string) => {
       const messagesSnapshot = await getDocs(messagesQuery);
 
       const lastMessageDoc = messagesSnapshot.docs[0];
-      return lastMessageDoc ? lastMessageDoc.data() : null;
+      return lastMessageDoc
+      ? { ...lastMessageDoc.data(), timestamp: lastMessageDoc.data().timestamp }
+      : null;
     })
   );
 
@@ -93,6 +95,8 @@ const processChatsSnapshot = async (snapshot: any, userId: string) => {
         id: docSnap.id,
         participants: participantsWithDetails,
         lastMessageSenderId: lastMessage?.senderId || null,
+        lastMessageTimestamp: lastMessage?.timestamp?.toMillis?.() || lastMessage?.timestamp || 0
+
       };
     })
   );
@@ -241,8 +245,18 @@ const Messages = () => {
     const other = item.participants.find(p => p.id !== user?.id);
     if (!other || !user) return null;
 
-    const userLastRead = user?.id ? item.readTimestamps?.[user.id] || 0 : 0;
-    const hasUnread = item.timestamp > userLastRead && item.lastMessageSenderId !== user?.id;;
+    const userId = user?.id ?? '';
+    const userLastRead = item.readTimestamps?.[userId] ?? 0;
+    const hasUnread = (item.lastMessageTimestamp || 0) > userLastRead && item.lastMessageSenderId !== userId;
+
+    console.log({
+      chatId: item.id,
+      lastMessageTimestamp: item.lastMessageTimestamp,
+      userLastRead,
+      lastMessageSenderId: item.lastMessageSenderId,
+      userId,
+      hasUnread
+    });
 
     return (
       <Swipeable

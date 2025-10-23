@@ -325,7 +325,7 @@ const CrewFind = () => {
       // Filter out null values (crew members not within 150km)
       const validCrewData = crewData.filter(Boolean) as User[];
 
-      // Filter out users who were last seen more than 2 hours ago
+      // Filter out users who were last seen more than 12 hours ago
       const filteredCrewData = validCrewData.filter((crewMember) => {
         if (!crewMember.lastSeen) return false;
         

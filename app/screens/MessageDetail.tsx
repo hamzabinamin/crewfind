@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, Platform, KeyboardAvoidingView } from "react-native";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
+import { View, Text, Platform, KeyboardAvoidingView, ActivityIndicator } from "react-native";
 import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { sendMessage, getOrCreateChat } from "../services/chatService";
@@ -26,6 +26,7 @@ const MessageDetail = () => {
   const [user, setUser] = useState<User | null>(null);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [avatarsLoaded, setAvatarsLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const chatIdStr = Array.isArray(chatId) ? chatId[0] : chatId;
   const recipientIdStr = Array.isArray(recipientId)
@@ -38,6 +39,12 @@ const MessageDetail = () => {
     ? otherParticipantImage[0]
     : otherParticipantImage;
 
+  // Memoize avatar URLs to prevent regeneration
+  const avatarUrls = useMemo(() => ({
+    currentUser: user?.profileImage || "https://ui-avatars.com/api/?name=You&background=1c1c88&color=fff",
+    otherUser: otherParticipantImageStr || "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+  }), [user?.profileImage, otherParticipantImageStr]);
+
   // Set custom header with avatar
   useEffect(() => {
     navigation.setOptions({
@@ -45,9 +52,7 @@ const MessageDetail = () => {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <FastImage
             source={{
-              uri:
-                otherParticipantImageStr ||
-                "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+              uri: avatarUrls.otherUser,
               priority: FastImage.priority.normal,
             }}
             style={{
@@ -66,7 +71,7 @@ const MessageDetail = () => {
         </View>
       ),
     });
-  }, [otherParticipantNameStr, otherParticipantImageStr, navigation]);
+  }, [otherParticipantNameStr, avatarUrls.otherUser, navigation]);
 
   // Fetch current user
   useEffect(() => {
@@ -77,46 +82,47 @@ const MessageDetail = () => {
     fetchUser();
   }, []);
 
-  // Preload avatars for faster display
+  // Preload avatars BEFORE rendering chat
   useEffect(() => {
     const preloadAvatars = async () => {
-      const avatarUrls = [
-        otherParticipantImageStr,
-        user?.profileImage,
+      if (!user) return;
+
+      const urlsToPreload = [
+        avatarUrls.currentUser,
+        avatarUrls.otherUser,
       ].filter(Boolean);
 
-      if (avatarUrls.length > 0) {
+      if (urlsToPreload.length > 0) {
         try {
           await FastImage.preload(
-            avatarUrls.map((uri) => ({
+            urlsToPreload.map((uri) => ({
               uri: uri || "",
               priority: FastImage.priority.high,
             }))
           );
-          setAvatarsLoaded(true);
+          // Add small delay to ensure images are in cache
+          setTimeout(() => setAvatarsLoaded(true), 100);
         } catch (error) {
           console.log("Avatar preload error:", error);
-          setAvatarsLoaded(true); // Still proceed even if preload fails
+          setAvatarsLoaded(true);
         }
       } else {
         setAvatarsLoaded(true);
       }
     };
 
-    if (user) {
-      preloadAvatars();
-    }
-  }, [user, otherParticipantImageStr]);
+    preloadAvatars();
+  }, [user, avatarUrls]);
 
   // Listen for Firebase messages and convert to Gifted Chat format
   useEffect(() => {
-    if (!chatIdStr) return;
+    if (!chatIdStr || !user || !avatarsLoaded) return;
 
     setCurrentOpenChatId(chatIdStr);
 
     const q = query(
       collection(db, "Chats", chatIdStr, "Messages"),
-      orderBy("timestamp", "desc") // Gifted Chat expects newest first
+      orderBy("timestamp", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -133,19 +139,17 @@ const MessageDetail = () => {
           messageDate = new Date();
         }
 
-        // Convert to Gifted Chat IMessage format
+        // Use memoized avatar URLs
+        const isCurrentUser = data.senderId === user?.id;
+        
         const giftedMessage: IMessage = {
           _id: doc.id,
           text: data.text || "",
           createdAt: messageDate,
           user: {
             _id: data.senderId || "",
-            name: data.senderId === user?.id ? "You" : otherParticipantNameStr || "User",
-            avatar:
-              data.senderId === user?.id
-                ? user?.profileImage || "https://ui-avatars.com/api/?name=You&background=1c1c88&color=fff"
-                : otherParticipantImageStr ||
-                  "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
+            name: isCurrentUser ? "You" : otherParticipantNameStr || "User",
+            avatar: isCurrentUser ? avatarUrls.currentUser : avatarUrls.otherUser,
           },
         };
 
@@ -159,7 +163,7 @@ const MessageDetail = () => {
       unsubscribe();
       setCurrentOpenChatId(null);
     };
-  }, [chatIdStr, user, otherParticipantNameStr, otherParticipantImageStr]);
+  }, [chatIdStr, user, otherParticipantNameStr, avatarUrls, avatarsLoaded]);
 
   // Handle sending messages
   const onSend = useCallback(
@@ -172,7 +176,6 @@ const MessageDetail = () => {
 
         let chatIdToUse = chatId as string;
 
-        // Create chat if it doesn't exist
         if (!chatIdToUse) {
           if (!recipientIdStr) return;
           const newChat = await getOrCreateChat(user.id ?? "", recipientIdStr);
@@ -190,8 +193,8 @@ const MessageDetail = () => {
     [user, chatId, recipientIdStr]
   );
 
-  // Custom bubble styling to match your original design
-  const renderBubble = (props: any) => {
+  // Custom bubble styling
+  const renderBubble = useCallback((props: any) => {
     return (
       <Bubble
         {...props}
@@ -217,10 +220,10 @@ const MessageDetail = () => {
         }}
       />
     );
-  };
+  }, []);
 
-  // Custom avatar rendering with FastImage for better caching
-  const renderAvatar = (props: any) => {
+  // Custom avatar rendering with FastImage
+  const renderAvatar = useCallback((props: any) => {
     return (
       <View style={{ marginBottom: 4, marginHorizontal: 8 }}>
         <FastImage
@@ -240,10 +243,10 @@ const MessageDetail = () => {
         />
       </View>
     );
-  };
+  }, []);
 
   // Custom input toolbar
-  const renderInputToolbar = (props: any) => {
+  const renderInputToolbar = useCallback((props: any) => {
     return (
       <InputToolbar
         {...props}
@@ -259,10 +262,10 @@ const MessageDetail = () => {
         }}
       />
     );
-  };
+  }, []);
 
   // Custom send button
-  const renderSend = (props: any) => {
+  const renderSend = useCallback((props: any) => {
     return (
       <Send
         {...props}
@@ -291,10 +294,10 @@ const MessageDetail = () => {
         </View>
       </Send>
     );
-  };
+  }, []);
 
   // Custom time display
-  const renderTime = (props: any) => {
+  const renderTime = useCallback((props: any) => {
     return (
       <Time
         {...props}
@@ -304,12 +307,14 @@ const MessageDetail = () => {
         }}
       />
     );
-  };
+  }, []);
 
-  if (!user) {
+  // Show loading until user and avatars are ready
+  if (!user || !avatarsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Loading...</Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f5f5f5" }}>
+        <ActivityIndicator size="large" color="#1c1c88" />
+        <Text style={{ marginTop: 10, color: "#666" }}>Loading chat...</Text>
       </View>
     );
   }
@@ -322,7 +327,7 @@ const MessageDetail = () => {
         user={{
           _id: user.id ?? "",
           name: "You",
-          avatar: user.profileImage || "https://ui-avatars.com/api/?name=You&background=1c1c88&color=fff",
+          avatar: avatarUrls.currentUser,
         }}
         renderBubble={renderBubble}
         renderAvatar={renderAvatar}
@@ -335,6 +340,10 @@ const MessageDetail = () => {
         renderUsernameOnMessage={false}
         renderAvatarOnTop
         infiniteScroll
+        messagesContainerStyle={{
+          paddingBottom: 10,
+        }}
+        minInputToolbarHeight={44}
       />
       {Platform.OS === "android" && <KeyboardAvoidingView behavior="padding" />}
     </View>

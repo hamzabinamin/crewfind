@@ -30,6 +30,7 @@ import {
      // participantIds: [userId, recipientId], // Store only IDs
       participants: [userId, recipientId], // Will be populated later with user/airline details
       lastMessage: "",
+      lastMessageSenderId: "",
       timestamp: Timestamp.now().toMillis(),
     });
   
@@ -38,6 +39,7 @@ import {
      // participantIds: [userId, recipientId], 
       participants: [userId, recipientId], // Placeholder for details
       lastMessage: "", 
+      lastMessageSenderId: "",
       timestamp: Timestamp.now().toMillis() 
     };
   };
@@ -59,6 +61,7 @@ import {
         const chatDocRef = doc(db, "Chats", chatId);
         await updateDoc(chatDocRef, {
           lastMessage: text,
+          lastMessageSenderId: senderId,
           timestamp: Timestamp.now().toMillis(),
         });
     
