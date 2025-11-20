@@ -21,8 +21,6 @@ import { useRouter } from "expo-router";
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
-import * as Crypto from 'expo-crypto';
-import * as AuthSession from 'expo-auth-session';
 
 // Complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -357,141 +355,10 @@ const Login = () => {
     }
   };
 
-  const generateNonce = (length = 32) => {
-    const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += charset[Math.floor(Math.random() * charset.length)];
-    }
-    return result;
-  };
-
- /* const handleAppleSignIn = async () => {
-    try {
-      setLoading(true);
-      console.log('🍎 Starting Apple Sign In...');
-      
-      // Check if Apple Authentication is available
-      const isAvailable = await AppleAuthentication.isAvailableAsync();
-      console.log('🍎 Apple Authentication available:', isAvailable);
-      
-      if (!isAvailable) {
-        Alert.alert('Apple Sign In Not Available', 'Apple Sign In is not available on this device.');
-        return;
-      }
-      
-      // Generate nonce
-      const rawNonce = generateNonce();
-      const hashedNonce = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        rawNonce,
-        { encoding: Crypto.CryptoEncoding.HEX }
-      );
-
-      console.log('🍎 Generated nonces - raw length:', rawNonce.length, 'hashed length:', hashedNonce.length);
-      
-      // Attempt Apple Sign In
-      console.log('🍎 Attempting Apple Authentication...');
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-        nonce: hashedNonce,
-      });
-
-      console.log('🍎 Apple credential received:', {
-        user: credential.user ? `User ID present (${credential.user.length} chars)` : 'No user ID',
-        email: credential.email || 'No email provided',
-        identityToken: credential.identityToken ? `Token present (${credential.identityToken.length} chars)` : 'No identity token',
-        authorizationCode: credential.authorizationCode ? `Code present (${credential.authorizationCode.length} chars)` : 'No auth code',
-        fullName: credential.fullName ? {
-          givenName: credential.fullName.givenName,
-          familyName: credential.fullName.familyName
-        } : 'No full name',
-        realUserStatus: credential.realUserStatus
-      });
-
-      if (!credential.identityToken) {
-        throw new Error('No identity token received from Apple');
-      }
-
-      // Create Firebase credential
-      console.log('🍎 Creating Firebase credential...');
-      const provider = new OAuthProvider('apple.com');
-      const firebaseCredential = provider.credential({
-        idToken: credential.identityToken,
-        rawNonce: rawNonce,
-      });
-
-      console.log('🍎 Attempting Firebase sign in...');
-      const userCredential = await signInWithCredential(auth, firebaseCredential);
-      console.log('🍎 Firebase sign in successful:', userCredential.user.uid);
-      
-      // Extract name from Apple response
-      const additionalData = {
-        firstName: credential.fullName?.givenName || "",
-        lastName: credential.fullName?.familyName || "",
-      };
-
-      await createOrUpdateUser(userCredential.user, additionalData);
-      
-    } catch (error: any) {
-      console.log('🍎 Full error object:', JSON.stringify(error, null, 2));
-      console.log('🍎 Error properties:', {
-        message: error.message,
-        code: error.code,
-        name: error.name,
-        stack: error.stack,
-        nativeStackAndroid: error.nativeStackAndroid,
-        userInfo: error.userInfo
-      });
-      
-      if (error.code === 'ERR_REQUEST_CANCELED') {
-        console.log('🍎 User canceled Apple Sign In');
-        return;
-      }
-      
-      // Handle specific Apple Sign In errors
-      let errorMessage = 'Apple Sign In failed';
-      
-      switch (error.code) {
-        case 'ERR_REQUEST_FAILED':
-          errorMessage = 'Apple Sign In request failed. Please check your internet connection.';
-          break;
-        case 'ERR_REQUEST_CANCELED':
-          errorMessage = 'Apple Sign In was canceled.';
-          break;
-        case 'ERR_REQUEST_NOT_HANDLED':
-          errorMessage = 'Apple Sign In request was not handled properly.';
-          break;
-        case 'ERR_REQUEST_NOT_INTERACTIVE':
-          errorMessage = 'Apple Sign In requires user interaction.';
-          break;
-        case 'ERR_REQUEST_UNKNOWN':
-          errorMessage = 'An unknown error occurred during Apple Sign In.';
-          break;
-        default:
-          if (error.message.includes('firebase')) {
-            errorMessage = `Firebase error: ${error.message}`;
-          } else if (error.message.includes('nonce')) {
-            errorMessage = 'Nonce validation failed. Please try again.';
-          } else {
-            errorMessage = `Apple Sign In error: ${error.message}`;
-          }
-      }
-      
-      console.error('🍎 Apple sign in error details:', errorMessage);
-      Alert.alert('Apple Sign In Failed', errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }; */
-
   const handleAppleSignIn = async () => {
     try {
       setLoading(true);
-      console.log('🍎 Starting Expo Managed Apple Sign In...');
+      console.log('🍎 Starting Apple Sign In...');
       
       const credential = await AppleAuthentication.signInAsync({
         requestedScopes: [
@@ -510,7 +377,7 @@ const Login = () => {
         throw new Error('No identity token received from Apple');
       }
 
-      // Use Expo's managed Firebase integration
+      // Create Firebase credential using OAuthProvider
       const provider = new OAuthProvider('apple.com');
       const firebaseCredential = provider.credential({
         idToken: credential.identityToken,
@@ -520,12 +387,13 @@ const Login = () => {
       const userCredential = await signInWithCredential(auth, firebaseCredential);
       console.log('🍎 Firebase sign in successful');
       
-      // Extract name from Apple response
+      // Extract name from Apple response (only provided on first sign-in)
       const additionalData = {
         firstName: credential.fullName?.givenName || "",
         lastName: credential.fullName?.familyName || "",
       };
 
+      // Use the same createOrUpdateUser function as Google sign-in
       await createOrUpdateUser(userCredential.user, additionalData);
       
     } catch (error: any) {
@@ -540,7 +408,7 @@ const Login = () => {
         stack: error.stack
       });
       
-      Alert.alert('Apple Sign In Failed', `Error: ${error.message}`);
+      Alert.alert('Apple Sign In Failed', error.message);
     } finally {
       setLoading(false);
     }
@@ -618,46 +486,6 @@ const Login = () => {
       console.log('🔍 Debug function error:', error);
     }
   };
-
-/*const tryAuthSession = async () => {
-  try {
-    console.log('🔄 Trying with expo-auth-session...');
-    
-    // This is an alternative approach using AuthSession
-    const request = new AuthSession.AuthRequest({
-      clientId: 'com.fulltrade.crewfind', // Your bundle ID
-      scopes: ['email', 'name'],
-      redirectUri: AuthSession.makeRedirectUri({
-        useProxy: true,
-      }),
-      responseType: AuthSession.ResponseType.Code,
-      additionalParameters: {},
-      extraParams: {},
-    });
-
-    const result = await request.promptAsync({
-      authorizationEndpoint: 'https://appleid.apple.com/auth/authorize',
-    });
-
-    console.log('🔄 AuthSession result:', result);
-    
-  } catch (error) {
-    console.log('🔄 AuthSession failed:', error);
-  }
-};
-
-// Function to check bundle ID at runtime (add expo-application if needed)
-const checkAppConfig = () => {
-  console.log('📱 App Configuration Check:');
-  // If you have expo-application installed:
-  // import * as Application from 'expo-application';
-  // console.log('Bundle ID:', Application.applicationId);
-  // console.log('App Name:', Application.applicationName);
-  
-  // For now, just log what we expect
-  console.log('Expected Bundle ID: com.fulltrade.crewfind');
-  console.log('Expected Return URL format: https://auth.expo.io/@username/slug');
-};*/
 
   const handleRegisterPress = () => router.push({
     pathname: "./Register",
@@ -750,12 +578,12 @@ const checkAppConfig = () => {
 
             <Separator />
 
-          {/* {isAppleAvailable && (
-              <OAuthButton onPress={debugAppleSignIn} disabled={loading}>
+            {isAppleAvailable && (
+              <OAuthButton onPress={handleAppleSignIn} disabled={loading}>
                 <Icon name="apple" size={20} color="#000" />
                 <OAuthText>Continue with Apple</OAuthText>
               </OAuthButton>
-            )} */}
+            )} 
 
             <OAuthButton onPress={() => promptAsync()} disabled={!request || loading}>
               <Icon name="google" size={20} color="#000" />

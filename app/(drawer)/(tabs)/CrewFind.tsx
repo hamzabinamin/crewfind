@@ -343,6 +343,7 @@ const CrewFind = () => {
     } finally {
       setRefreshing(false);
       setLoading(false);
+      UtilFunctions.updateLastSeen();
     }
   };
 
@@ -800,7 +801,7 @@ const CrewFind = () => {
         <TouchableWithoutFeedback onPress={() => setCrewModalVisible(false)}>
           <ModalFilterOverlay>
             <TouchableWithoutFeedback>
-              <ModalBox>
+              <ModalBox>        
                 {/* Header */}
                 <HeaderRow>
                   <IconWrapper>
@@ -1274,6 +1275,8 @@ export const IconWrapper = styled.View`
   padding: 8px;
   border-radius: 8px;
   margin-right: 10px;
+  flex-shrink: 0; 
+  align-self: flex-start;  
 `;
 
 export const HeadingFilterModalText = styled.Text`
@@ -1389,4 +1392,4 @@ const EmptyMessage = styled.Text`
   color: #666;
   line-height: 24px;
   max-width: 280px;
-`;
+`; 
