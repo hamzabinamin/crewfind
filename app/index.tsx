@@ -28,11 +28,12 @@ export default function Index() {
   // Step 2: After both video and auth check complete, navigate
   useEffect(() => {
     if (videoFinished && authChecked) {
-      if (currentUser) {
+    /*  if (currentUser) {
         router.replace("/(drawer)/(tabs)/CrewFind");
       } else {
         router.replace("/screens/auth/Login");
-      }
+      } */
+      router.replace("/(drawer)/(tabs)/CrewFind");
     }
   }, [videoFinished, authChecked, currentUser]);
 

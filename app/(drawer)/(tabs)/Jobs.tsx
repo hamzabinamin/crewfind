@@ -80,9 +80,9 @@ const Jobs = () => {
   }, []);
 
   useEffect(() => {
-    if (user) {
+   // if (user) {
       fetchJobs();
-    }
+   // }
   }, [user]);
 
   useEffect(() => {
@@ -128,8 +128,8 @@ const Jobs = () => {
               const data = airlineSnap.data();
               console.log("Airline data: ", data);
 
-              const logoUrl = data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
-              const backgroundUrl = data.backgroundImage ? await UtilFunctions.fetchLogoUrl(data.backgroundImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+              const logoUrl = user && data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+              const backgroundUrl = user && data.backgroundImage ? await UtilFunctions.fetchLogoUrl(data.backgroundImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 
               airlineData = {
                 id: airlineSnap.id,
@@ -161,6 +161,7 @@ const Jobs = () => {
                 setChatIds(chatIdsStore);
               }
             } else {
+              console.log("Using unknown airline 1");
               airlineData = {
                 id: airlineID,
                 name: "Unknown Airline",
@@ -171,6 +172,7 @@ const Jobs = () => {
               };
             }
           } else {
+            console.log("Using unknown airline 2");
             airlineData = {
               id: "unknown",
               name: "Unknown Airline",
@@ -389,6 +391,10 @@ const Jobs = () => {
               <TouchableOpacity 
                 style={styles.actionButtonOutline} 
                 onPress={() => {
+                  if (!user) {
+                    router.replace("../../screens/auth/Login");
+                    return;
+                  }
                   navigateToChat(item.airline.id ?? "", chatIds[item.airline.id ?? ""] ?? "");
                 }}
               >

@@ -21,12 +21,12 @@ export default function DrawerLayout() {
     const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
       if (!user && isMountedRef.current) {
         console.log("User signed out, clearing storage and redirecting.");
-        try {
+       /* try {
           await AsyncStorage.removeItem("user");
           router.replace("/screens/auth/Login");
         } catch (error) {
           console.error("Error clearing user:", error);
-        }
+        } */
       }
     });
 
@@ -178,7 +178,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       "Logout",
       "Are you sure you want to log out?",
@@ -187,8 +187,10 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         {
           text: "Logout",
           style: "destructive",
-          onPress: () => {
+          onPress: async () => { 
             auth.signOut()
+            await AsyncStorage.removeItem("user");
+            router.replace("/screens/auth/Login"); 
           }, 
         },
       ]

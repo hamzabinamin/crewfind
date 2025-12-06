@@ -7,6 +7,7 @@ import Login from "./app/screens/auth/Login";
 import registerForPushNotificationsAsync from './app/notifications/registerForPushNotifications';
 import { saveExpoPushToken } from './app/notifications/saveExpoPushToken';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import CrewFind from './app/(drawer)/(tabs)/CrewFind';
 
 const auth = getAuth();
 
@@ -96,7 +97,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="auto" />
-      <Login />
+      <CrewFind />
     </View>
   );
 }
