@@ -69,6 +69,7 @@ const Login = () => {
 
   const createOrUpdateUser = async (firebaseUser: any, additionalData: any = {}) => {
     try {
+      console.log("firebaseUser.uid: ", firebaseUser.uid);
       const userDocRef = doc(db, "Users", firebaseUser.uid);
       const userDoc = await getDoc(userDocRef);
 
@@ -414,77 +415,8 @@ const Login = () => {
     }
   };
 
-  const debugAppleSignIn = async () => {
-    try {
-      console.log('🔍 === APPLE SIGN IN COMPREHENSIVE DEBUG ===');
-      
-      // 1. Check basic availability
-      const isAvailable = await AppleAuthentication.isAvailableAsync();
-      console.log('🔍 Apple Auth Available:', isAvailable);
-      
-      if (!isAvailable) {
-        Alert.alert('Not Available', 'Apple Sign In is not available on this device or iOS version');
-        return;
-      }
-      
-      // 2. Check device Apple ID status
-      console.log('🔍 Testing Apple ID credential state...');
-      
-      // 3. Try different scope combinations
-      const testConfigurations = [
-        {
-          name: 'No scopes',
-          scopes: []
-        },
-        {
-          name: 'Email only',
-          scopes: [AppleAuthentication.AppleAuthenticationScope.EMAIL]
-        },
-        {
-          name: 'Name only', 
-          scopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME]
-        },
-        {
-          name: 'Both scopes',
-          scopes: [
-            AppleAuthentication.AppleAuthenticationScope.EMAIL,
-            AppleAuthentication.AppleAuthenticationScope.FULL_NAME
-          ]
-        }
-      ];
-      
-      for (const config of testConfigurations) {
-        try {
-          console.log(`🔍 Testing: ${config.name}`);
-          
-          const credential = await AppleAuthentication.signInAsync({
-            requestedScopes: config.scopes,
-          });
-          
-          console.log(`✅ SUCCESS with ${config.name}:`, {
-            user: credential.user ? `Present (${credential.user.length} chars)` : 'Missing',
-            email: credential.email || 'Not provided',
-            identityToken: credential.identityToken ? `Present (${credential.identityToken.length} chars)` : 'Missing',
-            authorizationCode: credential.authorizationCode ? `Present` : 'Missing',
-            realUserStatus: credential.realUserStatus
-          });
-          
-          Alert.alert('Success!', `Apple Sign In worked with: ${config.name}`);
-          return; // Stop on first success
-          
-        } catch (error: any) {
-          console.log(`❌ Failed with ${config.name}:`, {
-            code: error.code,
-            message: error.message
-          });
-        }
-      }
-      
-      console.log('🔍 All configurations failed');
-      
-    } catch (error) {
-      console.log('🔍 Debug function error:', error);
-    }
+  const handleContinueAsGuest = async () => {
+    router.replace("../../(drawer)/(tabs)/CrewFind");
   };
 
   const handleRegisterPress = () => router.push({
@@ -589,6 +521,10 @@ const Login = () => {
               <Icon name="google" size={20} color="#000" />
               <OAuthText>Continue with Google</OAuthText>
             </OAuthButton>
+
+            <GuestButton onPress={handleContinueAsGuest}>
+              <GuestText>Continue as Guest</GuestText>
+            </GuestButton>
           </Form>
         </Container>
       </DismissKeyboardView>
@@ -734,6 +670,19 @@ const OAuthText = styled.Text`
   margin-left: 10px;
   font-size: 16px;
   color: #111827;
+`;
+
+const GuestButton = styled.TouchableOpacity`
+  align-items: center;
+  justify-content: center;
+  padding-vertical: 14px;
+  margin-top: 10px;
+`;
+
+const GuestText = styled.Text`
+  font-size: 15px;
+  color: #6b7280;
+  text-decoration: underline;
 `;
 
 const ErrorMessage = styled.View`

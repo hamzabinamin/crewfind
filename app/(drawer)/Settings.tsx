@@ -3,8 +3,8 @@ import { Pressable, Linking, TouchableOpacity, Alert, Text } from 'react-native'
 import styled from 'styled-components/native';
 import { useRouter } from "expo-router";
 import LoadingIndicator from "../utilities/LoadingIndicator";
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
+import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
+import { signOut, deleteUser } from 'firebase/auth';
 import { db, auth } from '../../FirebaseConfig'; // adjust to your Firebase init
 
 const Settings = () => { 
@@ -41,6 +41,39 @@ const Settings = () => {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      setLoading(true);
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const userRef = doc(db, "Users", user.uid);
+
+      // ✅ 1. Delete Firestore user data
+      await deleteDoc(userRef);
+
+      // ✅ 2. Delete Auth account
+      await deleteUser(user);
+
+      // ✅ 3. Redirect to Login
+      router.replace("../screens/auth/Login");
+
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+
+      if (error.code === "auth/requires-recent-login") {
+        Alert.alert(
+          "Reauthentication Required",
+          "Please sign in again to delete your account."
+        );
+      } else {
+        Alert.alert("Error", "Failed to delete account. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Container>
       {loading && <LoadingIndicator />}
@@ -65,6 +98,27 @@ const Settings = () => {
         );
       }}>
         <ListText style={{ color: 'red' }}>Deactivate Account</ListText>
+      </ListItem>
+
+      <ListItem
+        onPress={() => {
+          Alert.alert(
+            "Delete Account",
+            "This will permanently delete your account and all associated data. This action cannot be undone.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Yes, Delete",
+                style: "destructive",
+                onPress: handleDeleteAccount,
+              },
+            ]
+          );
+        }}
+      >
+        <ListText style={{ color: "#dc2626", fontWeight: "600" }}>
+          Delete Account
+        </ListText>
       </ListItem>
 
       <ListItem  onPress={() => Linking.openURL("https://www.crewfind.app/terms.html")}>

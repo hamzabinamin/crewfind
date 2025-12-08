@@ -13,7 +13,17 @@ import { getAuth } from 'firebase/auth';
 import { router } from "expo-router";
 
 export default function DrawerLayout() {
+  const [hasStoredUser, setHasStoredUser] = useState(false);
   const isMountedRef = useRef(false);
+
+  useEffect(() => {
+    const fetchUserFromStorage = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      setHasStoredUser(!!storedUser);
+    };
+
+    fetchUserFromStorage();
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -40,13 +50,16 @@ export default function DrawerLayout() {
     <Drawer
       screenOptions={{ 
         headerShown: true, 
+        swipeEnabled: hasStoredUser,
         swipeEdgeWidth: 0, 
         drawerActiveTintColor: "#1c1c88", 
-        headerLeft: () => (
-          <DrawerToggleButton tintColor="#1c1c88" />
-        ) 
-      }}
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+        headerLeft: hasStoredUser
+          ? () => <DrawerToggleButton tintColor="#1c1c88" />
+          : () => null,   // 👈 MUST RETURN null
+        }}
+        drawerContent={(props) =>
+          hasStoredUser ? <CustomDrawerContent {...props} /> : <GuestDrawerContent {...props} />
+        }
     >
       <Drawer.Screen
         name="(tabs)"
@@ -74,9 +87,9 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Airlines</Text>
             </View>
           ),
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#1c1c88" />
-          ) 
+         // headerLeft: () => (
+         //   <DrawerToggleButton tintColor="#1c1c88" />
+         // ) 
         }}
       />
        <Drawer.Screen
@@ -97,9 +110,9 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Blocked</Text>
             </View>
           ),
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#1c1c88" />
-          ) 
+         // headerLeft: () => (
+         //   <DrawerToggleButton tintColor="#1c1c88" />
+         // ) 
         }}
       />
       <Drawer.Screen
@@ -120,9 +133,9 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Friends</Text>
             </View>
           ),
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#1c1c88" />
-          ) 
+        // headerLeft: () => (
+        //   <DrawerToggleButton tintColor="#1c1c88" />
+        // ) 
         }}
       />
       <Drawer.Screen
@@ -143,9 +156,9 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Settings</Text>
             </View>
           ),
-          headerLeft: () => (
-            <DrawerToggleButton tintColor="#1c1c88" />
-          ) 
+        //  headerLeft: () => (
+        //    <DrawerToggleButton tintColor="#1c1c88" />
+        //  ) 
         }}
       />
     </Drawer>
@@ -226,6 +239,35 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         label="Logout"
         labelStyle={{ color: "red" }}
         onPress={handleLogout}
+      />
+    </DrawerContentScrollView>
+  );
+}
+
+function GuestDrawerContent(props: DrawerContentComponentProps) {
+  return (
+    <DrawerContentScrollView {...props}>
+      {/* Guest Header */}
+      <View style={styles.profileSection}>
+        <Image
+          source={require('../../assets/images/logo-white.png')}
+          style={{ width: 60, height: 60, marginBottom: 10 }}
+          resizeMode="contain"
+        />
+        <Text style={styles.profileName}>Guest</Text>
+        <Text style={{ color: "#6b7280", fontSize: 13 }}>
+          Limited access
+        </Text>
+      </View>
+
+      <View style={styles.separator} />
+
+      {/* Login option */}
+      <DrawerItem
+        label="Login / Create Account"
+        onPress={() => {
+          router.replace("/screens/auth/Login");
+        }}
       />
     </DrawerContentScrollView>
   );

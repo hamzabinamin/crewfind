@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import Icon2 from 'react-native-vector-icons/Ionicons';
 import * as Location from 'expo-location';
 import { User } from "../../models/User";
 import eventEmitter from "../../utilities/eventEmitter";
@@ -546,6 +547,10 @@ const CrewFind = () => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const handleLoginPress = () => {
+    router.push("../../screens/auth/Login"); 
+  };
+
   const renderItem = ({ item }: { item: User }) => {
     const isExpanded = expandedId === item.id;
     const isFriend = user?.friends?.includes(item.id ?? "") ?? false;
@@ -751,6 +756,26 @@ const CrewFind = () => {
       </TouchableOpacity>
     );
   };
+
+    // Show login required screen if user is not logged in
+  if (!user && !loading) {
+    return (
+      <Container>
+        <LoginRequiredContainer>
+          <LoginIconContainer>
+            <Icon2 name="lock-closed-outline" size={80} color="#1c1c88" />
+          </LoginIconContainer>
+          <LoginTitle>Login Required</LoginTitle>
+          <LoginMessage>
+            Please log in to discover and connect with crew members near you.
+          </LoginMessage>
+          <LoginButton onPress={handleLoginPress}>
+            <LoginButtonText>Go to Login</LoginButtonText>
+          </LoginButton>
+        </LoginRequiredContainer>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -1393,3 +1418,54 @@ const EmptyMessage = styled.Text`
   line-height: 24px;
   max-width: 280px;
 `; 
+
+const LoginRequiredContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  margin: 20px;
+`;
+
+const LoginIconContainer = styled.View`
+  margin-bottom: 30px;
+  background-color: #f0f0ff;
+  padding: 30px;
+  border-radius: 50px;
+`;
+
+const LoginTitle = styled.Text`
+  font-size: 28px;
+  font-weight: bold;
+  color: #1c1c88;
+  margin-bottom: 15px;
+  text-align: center;
+`;
+
+const LoginMessage = styled.Text`
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  line-height: 24px;
+  margin-bottom: 30px;
+  max-width: 300px;
+`;
+
+const LoginButton = styled.TouchableOpacity`
+  background-color: #1c1c88;
+  padding: 16px 40px;
+  border-radius: 12px;
+  shadow-color: #1c1c88;
+  shadow-opacity: 0.3;
+  shadow-radius: 8px;
+  elevation: 4;
+`;
+
+const LoginButtonText = styled.Text`
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+`;

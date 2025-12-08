@@ -392,7 +392,7 @@ const Jobs = () => {
                 style={styles.actionButtonOutline} 
                 onPress={() => {
                   if (!user) {
-                    router.replace("../../screens/auth/Login");
+                    router.push("../../screens/auth/Login");
                     return;
                   }
                   navigateToChat(item.airline.id ?? "", chatIds[item.airline.id ?? ""] ?? "");

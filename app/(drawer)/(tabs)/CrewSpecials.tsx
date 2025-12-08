@@ -26,6 +26,7 @@ import { Special } from "../../models/Special";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { User } from "../../models/User";
 import { db } from "../../../FirebaseConfig";
 import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
@@ -42,6 +43,7 @@ interface CustomActionSheetProps {
 export default function Specials() {
   const [specials, setSpecials] = useState<Special[]>([]);
   const [originalSpecials, setOriginalSpecials] = useState<Special[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number, longitude: number } | null>(null);
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function Specials() {
     return distance <= 150000 || (specialLoc.latitude === 0 && specialLoc.longitude === 0);
   };
   
-  const fetchUserLocationAndSpecials = async () => {
+  const fetchUserLocationAndSpecials = async (currentUser: User | null) => {
     try {
       setRefreshing(true);
       setLoading(true);
@@ -138,11 +140,11 @@ export default function Specials() {
 
           if (userLoc && !isWithin150km(userLoc, location)) return null;
 
-          const companyImageUrl = specialData.companyImage
+          const companyImageUrl = currentUser && specialData.companyImage
             ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
             : "https://dummyimage.com/300/fff/fff";
 
-          const backgroundImageUrl = specialData.backgroundImage
+          const backgroundImageUrl = currentUser && specialData.backgroundImage
             ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
             : "https://dummyimage.com/300/fff/fff";
 
@@ -194,7 +196,21 @@ export default function Specials() {
   };
 
   useEffect(() => {
-    fetchUserLocationAndSpecials();
+    console.log("Inside Home's useEffect");
+
+    const init = async () => {
+      const storedUser = await UtilFunctions.getUser();
+      console.log("Stored User: ", storedUser);
+
+      if (storedUser) {
+        setUser(storedUser);
+      }
+
+      // ✅ Guaranteed to run AFTER fetchUserFromStorage
+      await fetchUserLocationAndSpecials(storedUser ?? null);
+    };
+
+    init();
   }, []);
 
   const CustomActionSheet: React.FC<CustomActionSheetProps> = ({ visible, onClose, onSelectMaps, title }) => {
@@ -581,7 +597,7 @@ export default function Specials() {
           contentContainerStyle={styles.listContainer}
           refreshing={refreshing}
           showsVerticalScrollIndicator={false}
-          onRefresh={fetchUserLocationAndSpecials}
+          onRefresh={() => fetchUserLocationAndSpecials(user)}
           ListEmptyComponent={renderEmptyState} // ✅ Empty state handled here
         />
       )}

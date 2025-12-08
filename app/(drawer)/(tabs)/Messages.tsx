@@ -121,7 +121,7 @@ const Messages = () => {
   const [user, setUser] = useState<User | null>(null);
   const [crewChats, setCrewChats] = useState<Chat[]>([]);
   const [airlineChats, setAirlineChats] = useState<Chat[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeTab, setActiveTab] = useState<'crew' | 'airlines'>('crew');
@@ -129,9 +129,11 @@ const Messages = () => {
   useEffect(() => {
     const fetchUserFromStorage = async () => {
       const storedUser = await UtilFunctions.getUser();
+      setUser(storedUser);
       if (storedUser) {
-        setUser(storedUser);
         fetchChats(storedUser);
+      } else {
+        setLoading(false);
       }
     };
     fetchUserFromStorage();
@@ -222,6 +224,10 @@ const Messages = () => {
     }
   };
 
+  const handleLoginPress = () => {
+    router.push("../../screens/auth/Login"); 
+  };
+
   const renderRightActions = (chatId: string, progress: Animated.AnimatedInterpolation<number>) => {
     const scale = progress.interpolate({
       inputRange: [0, 1],
@@ -303,6 +309,26 @@ const Messages = () => {
   );
 
   const currentChats = activeTab === 'crew' ? filteredCrewChats : filteredAirlineChats;
+
+  // Show login required screen if user is not logged in
+  if (!user && !loading) {
+    return (
+      <Container>
+        <LoginRequiredContainer>
+          <LoginIconContainer>
+            <Icon name="lock-closed-outline" size={80} color="#1c1c88" />
+          </LoginIconContainer>
+          <LoginTitle>Login Required</LoginTitle>
+          <LoginMessage>
+            Please log in to view your messages and start conversations with crew members and airlines.
+          </LoginMessage>
+          <LoginButton onPress={handleLoginPress}>
+            <LoginButtonText>Go to Login</LoginButtonText>
+          </LoginButton>
+        </LoginRequiredContainer>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -563,4 +589,56 @@ const EmptyMessage = styled.Text`
   color: #666;
   line-height: 24px;
   max-width: 280px;
+`;
+
+// Login Required Styled Components
+const LoginRequiredContainer = styled.View`
+  flex: 1;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  background-color: #fff;
+  border-radius: 12px;
+  margin: 20px;
+`;
+
+const LoginIconContainer = styled.View`
+  margin-bottom: 30px;
+  background-color: #f0f0ff;
+  padding: 30px;
+  border-radius: 50px;
+`;
+
+const LoginTitle = styled.Text`
+  font-size: 28px;
+  font-weight: bold;
+  color: #1c1c88;
+  margin-bottom: 15px;
+  text-align: center;
+`;
+
+const LoginMessage = styled.Text`
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  line-height: 24px;
+  margin-bottom: 30px;
+  max-width: 300px;
+`;
+
+const LoginButton = styled.TouchableOpacity`
+  background-color: #1c1c88;
+  padding: 16px 40px;
+  border-radius: 12px;
+  shadow-color: #1c1c88;
+  shadow-opacity: 0.3;
+  shadow-radius: 8px;
+  elevation: 4;
+`;
+
+const LoginButtonText = styled.Text`
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
 `;
