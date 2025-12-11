@@ -56,6 +56,7 @@ const Settings = () => {
       await deleteUser(user);
 
       // ✅ 3. Redirect to Login
+      await signOut(auth);
       router.replace("../screens/auth/Login");
 
     } catch (error: any) {
@@ -129,7 +130,7 @@ const Settings = () => {
       <Separator />
 
       {/* Footer */}
-      <FooterText>© 2025 Fullard Apps</FooterText>
+      <FooterText>© {new Date().getFullYear()} Fullard Apps</FooterText>
     </Container>
   );
 }

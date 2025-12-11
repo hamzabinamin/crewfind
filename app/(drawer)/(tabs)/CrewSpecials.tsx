@@ -142,11 +142,11 @@ export default function Specials() {
 
           const companyImageUrl = currentUser && specialData.companyImage
             ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
-            : "https://dummyimage.com/300/fff/fff";
+            : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 
           const backgroundImageUrl = currentUser && specialData.backgroundImage
             ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
-            : "https://dummyimage.com/300/fff/fff";
+            : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 
           return {
             id: specialDoc.id,

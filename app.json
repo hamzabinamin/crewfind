@@ -3,7 +3,7 @@
     "name": "CrewFind",
     "slug": "crewfind",
     "displayName": "CrewFind",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon-new.png",
@@ -21,7 +21,10 @@
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Your location is used to show nearby crew members and aviation specials within 150 km of your position, such as recommending the closest crew members to you."
+        "NSLocationWhenInUseUsageDescription": "Your location is used to show nearby crew members and aviation specials within 150 km of your position, such as recommending the closest crew members to you.",
+        "NSCameraUsageDescription": "This app uses the camera to let you take a profile or background photo for your CrewFind account.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library so you can upload a profile or background image to your CrewFind account.",
+        "NSPhotoLibraryAddUsageDescription": "This app may save photos to your library when you update your profile or background image."
       }
     },
     "android": {

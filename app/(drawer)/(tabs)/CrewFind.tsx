@@ -548,7 +548,7 @@ const CrewFind = () => {
   };
 
   const handleLoginPress = () => {
-    router.push("../../screens/auth/Login"); 
+    router.replace("../../screens/auth/Login"); 
   };
 
   const renderItem = ({ item }: { item: User }) => {

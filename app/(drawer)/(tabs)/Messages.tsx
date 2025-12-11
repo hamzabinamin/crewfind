@@ -225,7 +225,7 @@ const Messages = () => {
   };
 
   const handleLoginPress = () => {
-    router.push("../../screens/auth/Login"); 
+    router.replace("../../screens/auth/Login"); 
   };
 
   const renderRightActions = (chatId: string, progress: Animated.AnimatedInterpolation<number>) => {

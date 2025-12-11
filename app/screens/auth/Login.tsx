@@ -1,5 +1,6 @@
 import { Dimensions, View, TouchableOpacity, Text, Alert } from "react-native";
 import React, { useEffect, useState } from "react";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
@@ -322,6 +323,7 @@ const Login = () => {
     if (!validateFields()) return;
     try {
       setLoading(true);
+      await AsyncStorage.removeItem("user");
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
