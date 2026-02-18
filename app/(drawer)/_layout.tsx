@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, Image, StyleSheet, Alert } from "react-native";
+import { View, Text, Image, StyleSheet, Alert, Platform } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Drawer } from 'expo-router/drawer';
 import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
@@ -203,7 +203,15 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           onPress: async () => { 
             auth.signOut()
             await AsyncStorage.removeItem("user");
-            router.replace("/screens/auth/Login"); 
+            
+            if (Platform.OS === 'android') {
+              router.push("/screens/auth/Login");
+              setTimeout(() => {
+                router.dismissAll();
+              }, 100);
+            } else {
+              router.replace("/screens/auth/Login");
+            }
           }, 
         },
       ]
@@ -266,7 +274,11 @@ function GuestDrawerContent(props: DrawerContentComponentProps) {
       <DrawerItem
         label="Login / Create Account"
         onPress={() => {
-          router.replace("/screens/auth/Login");
+          if (Platform.OS === 'ios') {
+            router.replace("/screens/auth/Login");
+          } else {
+            router.push("/screens/auth/Login");
+          }
         }}
       />
     </DrawerContentScrollView>

@@ -50,8 +50,8 @@ class UtilFunctions {
   static fetchLogoUrl = async (imagePath: string) => {
     try {
         if (!auth.currentUser) {
-          console.error("User not authenticated!");
-          return "https://via.placeholder.com/60"; // Fallback image
+      //    console.error("User not authenticated!");
+     //     return "https://via.placeholder.com/60"; // Fallback image
         }
     
         const storage = getStorage();

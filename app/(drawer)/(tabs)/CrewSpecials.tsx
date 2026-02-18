@@ -83,31 +83,14 @@ export default function Specials() {
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
 
       if (existingStatus !== "granted") {
-        // Show a helpful explanation
-        const userAgreed = await new Promise((resolve) => {
-          Alert.alert(
-            "Location Access Needed",
-            "We need your location to show nearby specials and offers. Allow location access?",
-            [
-              { text: "Not Now", style: "cancel", onPress: () => resolve(false) },
-              { text: "Allow", onPress: () => resolve(true) },
-            ]
-          );
-        });
-    
-        if (!userAgreed) {
-          setRefreshing(false);
-          setLoading(false);
-          return;
-        }
-    
+        // Request permission directly without a pre-alert (Apple requirement)
         const { status } = await Location.requestForegroundPermissionsAsync();
     
         if (status !== "granted") {
-          // 🛑 NOW the user has seen the system permission prompt
+          // Only show alert AFTER user has denied permission
           Alert.alert(
-            "Enable Location in Settings",
-            "To show nearby specials, please allow location access from Settings.",
+            "Location Access Required",
+            "This feature requires location access to show nearby specials and offers. You can enable it in Settings.",
             [
               { text: "Cancel", style: "cancel" },
               { text: "Open Settings", onPress: () => Linking.openSettings() },
@@ -140,11 +123,11 @@ export default function Specials() {
 
           if (userLoc && !isWithin150km(userLoc, location)) return null;
 
-          const companyImageUrl = currentUser && specialData.companyImage
+          const companyImageUrl = specialData.companyImage
             ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
             : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 
-          const backgroundImageUrl = currentUser && specialData.backgroundImage
+          const backgroundImageUrl = specialData.backgroundImage
             ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
             : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 

@@ -128,8 +128,8 @@ const Jobs = () => {
               const data = airlineSnap.data();
               console.log("Airline data: ", data);
 
-              const logoUrl = user && data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
-              const backgroundUrl = user && data.backgroundImage ? await UtilFunctions.fetchLogoUrl(data.backgroundImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+              const logoUrl = data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+              const backgroundUrl = data.backgroundImage ? await UtilFunctions.fetchLogoUrl(data.backgroundImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
 
               airlineData = {
                 id: airlineSnap.id,

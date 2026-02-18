@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, ActivityIndicator } from "react-native";
+import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -168,30 +168,14 @@ const CrewFind = () => {
       const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
 
       if (existingStatus !== "granted") {
-        // Show a helpful explanation
-        const userAgreed = await new Promise((resolve) => {
-          Alert.alert(
-            "Location Access Needed",
-            "We need your location to show nearby crew members. Allow location access?",
-            [
-              { text: "Not Now", style: "cancel", onPress: () => resolve(false) },
-              { text: "Allow", onPress: () => resolve(true) },
-            ]
-          );
-        });
-    
-        if (!userAgreed) {
-          setRefreshing(false);
-          setLoading(false);
-          return;
-        }
-    
+        // Request permission directly without a pre-alert (Apple requirement)
         const { status } = await Location.requestForegroundPermissionsAsync();
     
         if (status !== "granted") {
+          // Only show alert AFTER user has denied permission
           Alert.alert(
-            "Enable Location in Settings",
-            "To show nearby crew members, please allow location access from Settings.",
+            "Location Access Required",
+            "This feature requires location access to show nearby crew members. You can enable it in Settings.",
             [
               { text: "Cancel", style: "cancel" },
               { text: "Open Settings", onPress: () => Linking.openSettings() },
@@ -548,7 +532,11 @@ const CrewFind = () => {
   };
 
   const handleLoginPress = () => {
-    router.replace("../../screens/auth/Login"); 
+    if (Platform.OS === 'ios') {
+      router.replace("/screens/auth/Login");
+    } else {
+      router.push("/screens/auth/Login");
+    }
   };
 
   const renderItem = ({ item }: { item: User }) => {
@@ -690,37 +678,45 @@ const CrewFind = () => {
                   </DetailTextContainer>
                 </DetailRow>
 
-                <DetailRow>
-                  <DetailIcon name="flag" size={18} color="#1c1c88" />
-                  <DetailTextContainer>
-                    <DetailLabel>Nationality</DetailLabel>
-                    <DetailValue>{item.nationality}</DetailValue>
-                  </DetailTextContainer>
-                </DetailRow>
+                {item.nationality && (
+                  <DetailRow>
+                    <DetailIcon name="flag" size={18} color="#1c1c88" />
+                    <DetailTextContainer>
+                      <DetailLabel>Nationality</DetailLabel>
+                      <DetailValue>{item.nationality}</DetailValue>
+                    </DetailTextContainer>
+                  </DetailRow>
+                )}
 
-                <DetailRow>
-                  <DetailIcon name="heart" size={18} color="#1c1c88" />
-                  <DetailTextContainer>
-                    <DetailLabel>Relationship Status</DetailLabel>
-                    <DetailValue>{item.relationshipStatus}</DetailValue>
-                  </DetailTextContainer>
-                </DetailRow>
+                {item.relationshipStatus && (
+                  <DetailRow>
+                    <DetailIcon name="heart" size={18} color="#1c1c88" />
+                    <DetailTextContainer>
+                      <DetailLabel>Relationship Status</DetailLabel>
+                      <DetailValue>{item.relationshipStatus}</DetailValue>
+                    </DetailTextContainer>
+                  </DetailRow>
+                )}
 
-                <DetailRow>
-                  <DetailIcon name="user" size={18} color="#1c1c88" />
-                  <DetailTextContainer>
-                    <DetailLabel>Sex</DetailLabel>
-                    <DetailValue>{item.sex}</DetailValue>
-                  </DetailTextContainer>
-                </DetailRow>
+                {item.sex && (
+                  <DetailRow>
+                    <DetailIcon name="user" size={18} color="#1c1c88" />
+                    <DetailTextContainer>
+                      <DetailLabel>Sex</DetailLabel>
+                      <DetailValue>{item.sex}</DetailValue>
+                    </DetailTextContainer>
+                  </DetailRow>
+                )}
 
-                <DetailRow>
-                  <DetailIcon name="calendar" size={18} color="#1c1c88" />
-                  <DetailTextContainer>
-                    <DetailLabel>Age</DetailLabel>
-                    <DetailValue>{item.age}</DetailValue>
-                  </DetailTextContainer>
-                </DetailRow>
+                {item.age && (
+                  <DetailRow>
+                    <DetailIcon name="calendar" size={18} color="#1c1c88" />
+                    <DetailTextContainer>
+                      <DetailLabel>Age</DetailLabel>
+                      <DetailValue>{item.age}</DetailValue>
+                    </DetailTextContainer>
+                  </DetailRow>
+                )}
               </DetailSection>
 
               {/* Hobbies Section */}
@@ -1300,13 +1296,17 @@ export const IconWrapper = styled.View`
   padding: 8px;
   border-radius: 8px;
   margin-right: 10px;
-  flex-shrink: 0; 
-  align-self: flex-start;  
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  align-items: center;
 `;
 
 export const HeadingFilterModalText = styled.Text`
   font-size: 18px;
   font-weight: bold;
+  flex: 1;
+  flex-shrink: 1;
 `;
 
 export const SectionContainer = styled.View`

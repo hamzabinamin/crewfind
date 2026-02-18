@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, TextInputProps, TouchableOpacity, Animated } from 'react-native';
+import { Alert, FlatList, TextInputProps, TouchableOpacity, Animated, Platform } from 'react-native';
+import { useFocusEffect } from "@react-navigation/native";
 import styled from 'styled-components/native';
 import { useRouter } from 'expo-router';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { User } from "../../models/User";
 import { Chat } from "../../models/Chat";
 import { ChatParticipant } from "../../models/Chat";
+import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
-import {  QueryDocumentSnapshot, DocumentData, collection, query, getDocs, getDoc, updateDoc, doc, deleteDoc, where, limit, orderBy, onSnapshot } from 'firebase/firestore';
+import {  QueryDocumentSnapshot, DocumentData, collection, query, getDocs, getDoc, updateDoc, doc, deleteDoc, where, limit, orderBy, onSnapshot, arrayRemove } from 'firebase/firestore';
 import { db } from "../../../FirebaseConfig";
 import { MaterialIcons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -127,15 +129,6 @@ const Messages = () => {
   const [activeTab, setActiveTab] = useState<'crew' | 'airlines'>('crew');
 
   useEffect(() => {
-    const fetchUserFromStorage = async () => {
-      const storedUser = await UtilFunctions.getUser();
-      setUser(storedUser);
-      if (storedUser) {
-        fetchChats(storedUser);
-      } else {
-        setLoading(false);
-      }
-    };
     fetchUserFromStorage();
   }, []);
 
@@ -155,6 +148,23 @@ const Messages = () => {
 
     return () => unsubscribe();
   }, [user]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("useFocusEffect got called");
+      fetchUserFromStorage();
+    }, [])
+  );
+
+  const fetchUserFromStorage = async () => {
+    const storedUser = await UtilFunctions.getUser();
+    setUser(storedUser);
+    if (storedUser) {
+      fetchChats(storedUser);
+    } else {
+      setLoading(false);
+    }
+  };
 
   const onRefresh = async () => {
     if (!user) return;
@@ -211,7 +221,56 @@ const Messages = () => {
   };
 
   const navigateToChat = (chatId: string, otherParticipant: ChatParticipant) => {
-    router.push({ pathname: "../../screens/MessageDetail", params: { chatId, otherParticipantName: otherParticipant.name, otherParticipantImage: encodeURIComponent(otherParticipant.imageUrl ?? "") } });
+    router.push({ pathname: "../../screens/MessageDetail", params: { chatId, recipientId: otherParticipant.id, otherParticipantName: otherParticipant.name, otherParticipantImage: encodeURIComponent(otherParticipant.imageUrl ?? "") } });
+  };
+
+  const isUserBlocked = (participantId: string): boolean => {
+    console.log("Blocked List (Messages): ", user?.blocked);
+    return user?.blocked?.includes(participantId) || false;
+  };
+
+  const handleUnblock = async (userId: string, userName: string) => {
+    if (!user || !user.id) return; 
+
+    const currentUserId = user.id
+
+    Alert.alert(
+      "Unblock User",
+      `Are you sure you want to unblock ${userName}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Unblock",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const userRef = doc(db, "Users", currentUserId);
+              
+              await updateDoc(userRef, {
+                blocked: arrayRemove(userId),
+              });
+
+              const updatedBlocked = (user.blocked || []).filter(id => id !== userId);
+              const updatedUser = {
+                ...user,
+                blocked: updatedBlocked,
+              };
+
+              setUser(updatedUser);
+              await UtilFunctions.saveUser(updatedUser);
+              eventEmitter.emit("blockedChanged");
+              
+              Alert.alert("Success", `${userName} has been unblocked.`);
+            } catch (error) {
+              console.error("Error unblocking user:", error);
+              Alert.alert("Error", "Failed to unblock user. Please try again.");
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleChatPress = async (chatId: string, userId: string, otherParticipant: ChatParticipant) => {
@@ -225,7 +284,11 @@ const Messages = () => {
   };
 
   const handleLoginPress = () => {
-    router.replace("../../screens/auth/Login"); 
+    if (Platform.OS === 'ios') {
+        router.replace("../../screens/auth/Login"); 
+    } else {
+        router.push("../../screens/auth/Login"); 
+    }
   };
 
   const renderRightActions = (chatId: string, progress: Animated.AnimatedInterpolation<number>) => {
@@ -254,6 +317,7 @@ const Messages = () => {
     const userId = user?.id ?? '';
     const userLastRead = item.readTimestamps?.[userId] ?? 0;
     const hasUnread = (item.lastMessageTimestamp || 0) > userLastRead && item.lastMessageSenderId !== userId;
+    const isBlocked = isUserBlocked(other.id);
 
     console.log({
       chatId: item.id,
@@ -261,35 +325,59 @@ const Messages = () => {
       userLastRead,
       lastMessageSenderId: item.lastMessageSenderId,
       userId,
-      hasUnread
+      hasUnread,
+      isUserBlocked: isBlocked
     });
 
     return (
-      <Swipeable
-        renderRightActions={(progress) => renderRightActions(item.id, progress)}
-        overshootRight={false}
-      >
-        <TouchableOpacity onPress={() => handleChatPress(item.id, user?.id || "", other)}>
-          <ChatItem>
-            <ChatImage
-              source={{
-                uri: other.imageUrl,
-                priority: FastImage.priority.normal,
-                cache: FastImage.cacheControl.immutable,
-              }}
-              resizeMode={FastImage.resizeMode.cover}
-            />
-            <ChatDetails>
-              <ChatHeader>
-                <ChatName>{other.name}</ChatName>
-                {hasUnread && <UnreadDot />}
-              </ChatHeader>
-              <ChatMessage numberOfLines={1}>{item.lastMessage}</ChatMessage>
-            </ChatDetails>
-          </ChatItem>
-        </TouchableOpacity>
-      </Swipeable>
-    );
+        <Swipeable
+          renderRightActions={(progress) => renderRightActions(item.id, progress)}
+          overshootRight={false}
+        >
+          <TouchableOpacity 
+            onPress={() => {
+              if (!isBlocked) {
+                handleChatPress(item.id, user?.id || "", other);
+              }
+            }}
+            disabled={isBlocked}
+          >
+            <ChatItem blocked={isBlocked}>
+              <ChatImage
+                source={{
+                  uri: other.imageUrl,
+                  priority: FastImage.priority.normal,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                resizeMode={FastImage.resizeMode.cover}
+                style={{ opacity: isBlocked ? 0.5 : 1 }}
+              />
+              <ChatDetails>
+                <ChatHeader>
+                  <ChatName style={{ color: isBlocked ? '#999' : '#333' }}>
+                    {other.name}
+                  </ChatName>
+                  {hasUnread && !isBlocked && <UnreadDot />}
+                  {isBlocked && (
+                    <BlockedBadge>
+                      <Icon name="ban" size={12} color="#fff" />
+                      <BlockedText>Blocked</BlockedText>
+                    </BlockedBadge>
+                  )}
+                </ChatHeader>
+                <ChatMessage numberOfLines={1} style={{ color: isBlocked ? '#999' : '#666' }}>
+                  {isBlocked ? "You have blocked this user" : item.lastMessage}
+                </ChatMessage>
+                {isBlocked && (
+                  <UnblockButton onPress={() => handleUnblock(other.id, other.name)}>
+                    <UnblockButtonText>Unblock</UnblockButtonText>
+                  </UnblockButton>
+                )}
+              </ChatDetails>
+            </ChatItem>
+          </TouchableOpacity>
+        </Swipeable>
+      );
   };
 
   const handleSearch = (query: string) => {
@@ -477,13 +565,46 @@ const SearchInput = styled.TextInput`
   font-size: 16px;
 `;
 
-const ChatItem = styled.View`
+const ChatItem = styled.View<{ blocked?: boolean }>`
   flex-direction: row;
   align-items: center;
-  background-color: #fff;
+  background-color: ${({ blocked }) => (blocked ? '#f8f8f8' : '#fff')};
   padding: 15px;
   border-radius: 10px;
   margin-bottom: 10px;
+  ${({ blocked }) => blocked && `
+    border-left-width: 3px;
+    border-left-color: #ff3b30;
+  `}
+`;
+
+const BlockedBadge = styled.View`
+  flex-direction: row;
+  align-items: center;
+  background-color: #ff3b30;
+  padding: 4px 8px;
+  border-radius: 12px;
+  gap: 4px;
+`;
+
+const BlockedText = styled.Text`
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+`;
+
+const UnblockButton = styled.TouchableOpacity`
+  margin-top: 8px;
+  background-color: #1c1c88;
+  padding: 8px 16px;
+  border-radius: 8px;
+  align-self: flex-start;
+`;
+
+const UnblockButtonText = styled.Text`
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
 `;
 
 const ChatImage = styled(FastImage)`

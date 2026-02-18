@@ -3,7 +3,7 @@
     "name": "CrewFind",
     "slug": "crewfind",
     "displayName": "CrewFind",
-    "version": "1.0.15",
+    "version": "1.0.17",
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon-new.png",
@@ -29,7 +29,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon-new.png",
+        "foregroundImage": "./assets/images/icon-new-adaptive.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [

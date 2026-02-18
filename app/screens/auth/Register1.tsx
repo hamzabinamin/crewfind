@@ -195,8 +195,8 @@ const Register = () => {
     setName(user.name);
     setSurname(user.surName);
     setEmail(user.email);
-    setBase(user.base);
-    setNationality(user.nationality);
+    setBase(user.base || "");
+    setNationality(user.nationality || "");
     if (!role) {
       setPosition(user.position || "");
     }
@@ -223,11 +223,12 @@ const Register = () => {
     console.log(relationshipStatus);
     console.log(hobbies);
 
+    // Updated validation - only require name, surname, email, password (if new), position, company, and hobbies
     if (
-      !name || !surname || !email || (!password && !isFromSettings && !isFromLogin) || !base || !nationality || !position ||
-      !companyName || !age || !sex || !relationshipStatus || !hobbies
+      !name || !surname || !email || (!password && !isFromSettings && !isFromLogin) || !position ||
+      !companyName || !hobbies
     ) {
-      Alert.alert("Validation Error", "All fields are required!");
+      Alert.alert("Validation Error", "Name, surname, email, position, company name, and hobbies are required!");
       return;
     }
 
@@ -241,17 +242,22 @@ const Register = () => {
       return;
     }
 
-    if (isNaN(Number(age)) || Number(age) <= 0) {
+    // Age validation - only if provided
+    if (age && (isNaN(Number(age)) || Number(age) <= 0)) {
       Alert.alert("Validation Error", "Age must be a positive number.");
       return;
     } 
 
-    let sanitizedSex = sex.trim().toLowerCase();
-    if (sanitizedSex === "male" || sanitizedSex === "female") {
-      sanitizedSex = sanitizedSex.charAt(0).toUpperCase() + sanitizedSex.slice(1);
-    } else {
-      Alert.alert("Validation Error", "Sex must be either 'Male' or 'Female'.");
-      return;
+    // Sex validation - only if provided
+    if (sex) {
+      let sanitizedSex = sex.trim().toLowerCase();
+      if (sanitizedSex === "male" || sanitizedSex === "female") {
+        sanitizedSex = sanitizedSex.charAt(0).toUpperCase() + sanitizedSex.slice(1);
+        setSex(sanitizedSex);
+      } else {
+        Alert.alert("Validation Error", "Sex must be either 'Male' or 'Female'.");
+        return;
+      }
     }
 
     const sanitizedHobbies = hobbies.trim();
@@ -273,13 +279,13 @@ const Register = () => {
       surName: surname,
       email,
       password,
-      base,
-      nationality,
+      base: base || undefined,
+      nationality: nationality || undefined,
       position,
       companyName,
-      age: Number(age),
-      sex,
-      relationshipStatus,
+      age: age ? Number(age) : 0,
+      sex: sex || undefined,
+      relationshipStatus: relationshipStatus || undefined,
       hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
     };
 
@@ -287,13 +293,13 @@ const Register = () => {
       name,
       surName: surname,
       email,
-      base,
-      nationality,
+      base: base || undefined,
+      nationality: nationality || undefined,
       position,
       companyName,
-      age: Number(age),
-      sex,
-      relationshipStatus,
+      age: age ? Number(age) : 0,
+      sex: sex || undefined,
+      relationshipStatus: relationshipStatus || undefined,
       hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
     };
 
@@ -308,13 +314,13 @@ const Register = () => {
         if (storedUser) {
           storedUser.name = name
           storedUser.surName = surname,
-          storedUser.base = base,
-          storedUser.nationality = nationality,
+          storedUser.base = base || "",
+          storedUser.nationality = nationality || "",
           storedUser.position = position,
           storedUser.companyName = companyName,
-          storedUser.age = Number(age),
-          storedUser.sex = sex,
-          storedUser.relationshipStatus = relationshipStatus,
+          storedUser.age = age ? Number(age) : 0,
+          storedUser.sex = sex || "",
+          storedUser.relationshipStatus = relationshipStatus || "",
           storedUser.hobbies = hobbies ? hobbies.split(",").map((hobby) => hobby.trim()) : [];
           UtilFunctions.saveUser(storedUser);
         }
@@ -400,16 +406,16 @@ const Register = () => {
 
         <InputRow>
           <HalfInput style={{ marginLeft: -10 }}>
-            <Label style={{ marginLeft: 8 }}>Name</Label>
+            <Label style={{ marginLeft: 8 }}>Name *</Label>
             <InputField label="First name" value={name} onChangeText={setName} icon="user" />
           </HalfInput>
           <HalfInput style={{ marginRight: -10 }}>
-            <Label style={{ marginLeft: 8 }}>Surname</Label>
+            <Label style={{ marginLeft: 8 }}>Surname *</Label>
             <InputField label="Last name" value={surname} onChangeText={setSurname} icon="user" />
           </HalfInput>
         </InputRow>
 
-        <Label>Email</Label>
+        <Label>Email *</Label>
         <InputField 
           label="your.email@example.com" 
           value={email} 
@@ -422,26 +428,26 @@ const Register = () => {
 
         {(!isFromSettings && !isFromLogin) && (
           <>
-            <Label>Password</Label>
+            <Label>Password *</Label>
             <InputField label="Enter password" secureTextEntry value={password} onChangeText={setPassword} icon="lock" />
           </>
         )}
 
-        <Label>Base (Country)</Label>
+        <Label>Base (Country) <OptionalText>(Optional)</OptionalText></Label>
         <DropdownField label="Select your base country" value={base} icon="map-marker" onPress={() => openDropdown("base")} />
 
-        <Label>Nationality</Label>
+        <Label>Nationality <OptionalText>(Optional)</OptionalText></Label>
         <DropdownField label="Select your nationality" value={nationality} icon="map-marker" onPress={() => openDropdown("nationality")} />
 
-        <Label>Position</Label>
+        <Label>Position *</Label>
         <DropdownField label="Select Position" value={position} icon="briefcase" onPress={() => openDropdown("position")} />
 
-        <Label>Company Name</Label>
+        <Label>Company Name *</Label>
         <InputField label="Enter airline/company name" value={companyName} onChangeText={setCompanyName} icon="building" />
         
         <InputRow>
           <HalfInput style={{ marginLeft: -10 }}>
-            <Label style={{ marginLeft: 8 }}>Age</Label>
+            <Label style={{ marginLeft: 8 }}>Age <OptionalText>(Optional)</OptionalText></Label>
             <InputField
               label="25"
               value={age}
@@ -452,7 +458,7 @@ const Register = () => {
           </HalfInput>
 
           <HalfInput style={{ marginRight: -10 }}>
-            <Label style={{ marginLeft: 8 }}>Sex</Label>
+            <Label style={{ marginLeft: 8 }}>Sex <OptionalText>(Optional)</OptionalText></Label>
             <DropdownField
               label="Select"
               value={sex}
@@ -462,10 +468,10 @@ const Register = () => {
           </HalfInput>
         </InputRow>
 
-        <Label>Relationship Status</Label>
+        <Label>Relationship Status <OptionalText>(Optional)</OptionalText></Label>
         <DropdownField label="Select Status" value={relationshipStatus} icon="heart" onPress={() => openDropdown("relationship")} />
 
-        <Label>Hobbies (max 100 characters)</Label>
+        <Label>Hobbies (max 100 characters) *</Label>
         <InputField
           label="This will appear on your profile..."
           value={hobbies}
@@ -633,6 +639,13 @@ const Label = styled.Text`
   font-weight: 600;
   color: #1c1c88;
   margin: 8px 20px 4px 20px;
+`;
+
+const OptionalText = styled.Text`
+  font-size: 12px;
+  font-weight: 400;
+  color: #999;
+  font-style: italic;
 `;
 
 const InputContainer = styled.View`

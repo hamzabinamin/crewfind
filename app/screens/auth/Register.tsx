@@ -1,15 +1,17 @@
 import React, { useState } from "react";
-import { View, TouchableOpacity, ScrollView, SafeAreaView, Platform } from "react-native";
+import { View, TouchableOpacity, ScrollView, Platform } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function Register() {
   const router = useRouter();
   const { cameFromLogin } = useLocalSearchParams();
   const isFromLogin = cameFromLogin === "true";
   const [selectedRole, setSelectedRole] = useState<"Pilot" | "Cabin Crew" | null>(null);
+  const insets = useSafeAreaInsets();
 
   const handleNext = () => {
     if (selectedRole) {
@@ -68,7 +70,7 @@ export default function Register() {
         </RoleOption>
       </ScrollViewContent>
 
-      <FixedBottom>
+      <FixedBottom style={{ bottom: insets.bottom || 20 }}>
         <NextButton
           disabled={!selectedRole}
           activeOpacity={selectedRole ? 0.7 : 1}
@@ -84,7 +86,7 @@ export default function Register() {
   );
 }
 
-const Container = styled(SafeAreaView)`
+const Container = styled.View`
   flex: 1;
   background-color: #fff;
 `;
@@ -183,7 +185,6 @@ const OptionSub = styled.Text`
 
 const FixedBottom = styled.View`
   position: absolute;
-  bottom: 20px;
   left: 20px;
   right: 20px;
 `;

@@ -1,15 +1,22 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { View, Text, Platform, KeyboardAvoidingView, ActivityIndicator } from "react-native";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { View, Text, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
 import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { sendMessage, getOrCreateChat } from "../services/chatService";
+import Icon2 from 'react-native-vector-icons/Ionicons';
 import { User } from "../models/User";
 import { Message } from "../models/Message";
+import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
+import LoadingIndicator from "../utilities/LoadingIndicator";
 import { setCurrentOpenChatId } from "../../hooks/usePushNotifications";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
+
+export interface ChatMessage extends IMessage {
+  isReported?: boolean;
+}
 
 const MessageDetail = () => {
   const navigation = useNavigation();
@@ -24,7 +31,8 @@ const MessageDetail = () => {
     Array.isArray(chatIdParam) ? chatIdParam[0] : chatIdParam
   );
   const [user, setUser] = useState<User | null>(null);
-  const [messages, setMessages] = useState<IMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
   const [avatarsLoaded, setAvatarsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -45,42 +53,23 @@ const MessageDetail = () => {
     otherUser: otherParticipantImageStr || "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
   }), [user?.profileImage, otherParticipantImageStr]);
 
-  // Set custom header with avatar
+   // Fetch current user
   useEffect(() => {
-    navigation.setOptions({
-      headerTitle: () => (
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <FastImage
-            source={{
-              uri: avatarUrls.otherUser,
-              priority: FastImage.priority.normal,
-            }}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: "#1c1c88",
-              marginRight: 8,
-            }}
-            resizeMode={FastImage.resizeMode.cover}
-          />
-          <Text style={{ fontSize: 16, fontWeight: "600", color: "#000" }}>
-            {otherParticipantNameStr || "Messages"}
-          </Text>
-        </View>
-      ),
-    });
-  }, [otherParticipantNameStr, avatarUrls.otherUser, navigation]);
-
-  // Fetch current user
-  useEffect(() => {
+    console.log("useEffect: fetching user");
     const fetchUser = async () => {
       const storedUser = await UtilFunctions.getUser();
-      if (storedUser) setUser(storedUser);
+      console.log("storedUser:", storedUser);
+      if (storedUser) {
+        console.log("Setting user");
+        setUser(storedUser);
+        console.log("After setting: ", user);
+      }
+      else {
+        console.log("No stored user found");
+      }
     };
     fetchUser();
-  }, []);
+  }, []); 
 
   // Preload avatars BEFORE rendering chat
   useEffect(() => {
@@ -114,6 +103,54 @@ const MessageDetail = () => {
     preloadAvatars();
   }, [user, avatarUrls]);
 
+  // Set custom header with avatar
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <FastImage
+            source={{
+              uri: avatarUrls.otherUser,
+              priority: FastImage.priority.normal,
+            }}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: "#1c1c88",
+              marginRight: 8,
+            }}
+            resizeMode={FastImage.resizeMode.cover}
+          />
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: "600",
+              color: "#000",
+            }}
+          >
+            {otherParticipantNameStr || "Messages"}
+          </Text>
+        </View>
+      ),
+
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={openChatOptions}
+          style={{ marginRight: 12 }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Icon2
+            name="ellipsis-vertical"
+            size={20}
+            color="#000"
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [user, otherParticipantNameStr, avatarUrls.otherUser, navigation]);
+
   // Listen for Firebase messages and convert to Gifted Chat format
   useEffect(() => {
     if (!chatIdStr || !user || !avatarsLoaded) return;
@@ -128,6 +165,8 @@ const MessageDetail = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetched = snapshot.docs.map((doc) => {
         const data = doc.data();
+        console.log("Message data:", data);
+        console.log("Message text:", data.text);
         
         // Convert timestamp
         let messageDate: Date;
@@ -142,21 +181,29 @@ const MessageDetail = () => {
         // Use memoized avatar URLs
         const isCurrentUser = data.senderId === user?.id;
         
-        const giftedMessage: IMessage = {
+        const giftedMessage: ChatMessage = {
           _id: doc.id,
-          text: data.text || "",
+          text: data.isReported ? "This message has been reported" : data.text || "",
           createdAt: messageDate,
           user: {
             _id: data.senderId || "",
             name: isCurrentUser ? "You" : otherParticipantNameStr || "User",
             avatar: isCurrentUser ? avatarUrls.currentUser : avatarUrls.otherUser,
           },
+          isReported: data.isReported || false,
         };
-
         return giftedMessage;
       });
 
+      console.log("✅ Fetched messages array:", fetched);
+      console.log("📊 Messages count:", fetched.length);
+      if (fetched.length > 0) {
+        console.log("🔍 First message (most recent):", fetched[0]);
+        console.log("💬 First message text:", fetched[0].text);
+      } 
+
       setMessages(fetched);
+      messagesRef.current = fetched;
     });
 
     return () => {
@@ -164,6 +211,182 @@ const MessageDetail = () => {
       setCurrentOpenChatId(null);
     };
   }, [chatIdStr, user, otherParticipantNameStr, avatarUrls, avatarsLoaded]);
+
+  const openChatOptions = () => {
+    // Capture user state at the time of opening the alert
+    
+    if (!user) {
+      Alert.alert("Please wait", "User information is loading");
+      return;
+    }
+
+    console.log("Opening chat options");
+    console.log("Messages from ref:", messagesRef.current);
+    console.log("Messages length:", messagesRef.current.length);
+  
+    const lastMessage = messagesRef.current.length > 0 ? messagesRef.current[0] : undefined;
+    const lastMessageText = lastMessage?.text ?? "";
+    const lastMeesageId = lastMessage?._id?.toString() ?? "";
+
+    console.log("Last message text:", lastMessageText);
+
+    Alert.alert(
+      "Chat Options",
+      "Choose an action",
+      [
+        {
+          text: "Report User",
+          onPress: () => {
+            reportUser(user, recipientIdStr, otherParticipantNameStr || "Unknown User", "USER_REPORTED", lastMeesageId, "Abusive Messages", lastMessageText);
+          }
+        },
+        {
+          text: "Block User",
+          style: "destructive",
+          onPress: () => {
+            blockUser(user, recipientIdStr);
+          },
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
+
+ const reportUser = async (
+  currentUser: User,
+  reportedUserId: string,
+  reportedUserName: string,
+  type: string,
+  messageId: string,
+  reason: string,
+  lastMessage?: string
+  ) => {
+    try {
+      console.log("Inside reportUser");
+      if (type != "MESSAGE_REPORTED") {
+        await blockUser(currentUser, reportedUserId, false);
+      }
+     
+      console.log("Inside reportUser: Blocked user, now reporting them");
+  
+      const reportPayload: any = {
+        type,
+        chatId: chatIdStr,
+        messageId,
+        reportedUserId,
+        reportedUserName,
+        reportedBy: currentUser.id,
+        reportedByName: `${currentUser.name} ${currentUser.surName}`,
+        reason,
+        timestamp: Date.now(),
+        status: "PENDING",
+      };
+
+      if (type == "MESSAGE_REPORTED") {
+        reportPayload.reportedMessage = lastMessage || null;
+
+        const messageRef = doc(db, "Chats",
+          chatIdStr,
+          "Messages",
+          messageId
+        );
+
+        await updateDoc(messageRef, {
+          isReported: true,
+          reportedAt: Date.now(),
+        });
+      }
+      else {
+        reportPayload.lastMessage = lastMessage || null;
+      }
+
+      await addDoc(collection(db, "UserReports"), reportPayload);
+
+      if (type !== "MESSAGE_REPORTED") {
+        Alert.alert(
+          "Report submitted",
+          "The user has been blocked and our team has been notified.",
+          [
+            {
+              text: "OK",
+              onPress: () => navigation.goBack(), 
+            }
+          ]
+        );
+      }
+
+    } catch (error) {
+      console.error("Error reporting user:", error);
+    }
+  };
+
+  const blockUser = async (currentUser: User, otherUserId: string, showAlert: boolean = true) => {
+    console.log("Blocking user (currentUser.id):", currentUser.id);
+    console.log("Blocking user:", otherUserId);
+
+    try {
+      setLoading(true);
+
+      if (!currentUser?.id || !otherUserId) return;
+
+      const userRef = doc(db, "Users", currentUser.id);
+      const userSnap = await getDoc(userRef);
+
+      if (!userSnap.exists()) return;
+
+      const userData = userSnap.data();
+
+      const blockedList: string[] = userData.blocked || [];
+      const friendsList: string[] = userData.friends || [];
+
+      const isAlreadyBlocked = blockedList.includes(otherUserId);
+
+      if (!isAlreadyBlocked) {
+        await updateDoc(userRef, {
+          blocked: arrayUnion(otherUserId),
+          friends: friendsList.includes(otherUserId)
+            ? arrayRemove(otherUserId)
+            : friendsList,
+        });
+
+        const updatedBlocked = [...blockedList, otherUserId];
+        const updatedFriends = friendsList.filter(id => id !== otherUserId);
+
+        const updatedUser = {
+          ...currentUser,
+          blocked: updatedBlocked,
+          friends: updatedFriends,
+        };
+
+        setUser(updatedUser);
+        console.log("Blocked List after update (MessageDetail): ", updatedUser.blocked);
+        UtilFunctions.saveUser(updatedUser);
+        eventEmitter.emit("blockedChanged");
+            
+
+        if (showAlert) {
+            Alert.alert(
+              "User Blocked",
+              "This user has been blocked successfully.",
+              [
+                {
+                  text: "OK",
+                  onPress: () => navigation.goBack(),
+                }
+              ]
+          );
+        }
+      }
+
+    } catch (error) {
+      console.error("Error blocking user:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Handle sending messages
   const onSend = useCallback(
@@ -195,32 +418,61 @@ const MessageDetail = () => {
 
   // Custom bubble styling
   const renderBubble = useCallback((props: any) => {
+    const isReported = props.currentMessage?.isReported;
     return (
       <Bubble
         {...props}
         wrapperStyle={{
           right: {
-            backgroundColor: "#1c1c88",
+            backgroundColor: isReported ? "#FFD6D6" : "#1c1c88",
             marginRight: 8,
             marginVertical: 4,
           },
           left: {
-            backgroundColor: "#E5E5EA",
+            backgroundColor: isReported ? "#EEE" : "#E5E5EA",
             marginLeft: 8,
             marginVertical: 4,
           },
         }}
         textStyle={{
           right: {
-            color: "#fff",
+            color: isReported ? "#B00020" : "#fff",
+            fontStyle: isReported ? "italic" : "normal",
           },
           left: {
-            color: "#000",
+            color: isReported ? "#B00020" : "#000",
+            fontStyle: isReported ? "italic" : "normal",
           },
         }}
       />
     );
   }, []);
+
+  const openMessageOptions = (message: IMessage) => {
+    if (!user) {
+      Alert.alert("Please wait", "User information is loading");
+      return;
+    }
+
+    const messageId = message._id?.toString() ?? "";
+    const messageText = message.text ?? "";
+
+    Alert.alert(
+      "Message Options",
+      "Choose an action",
+      [
+        {
+          text: "Report Message",
+          style: "destructive",
+          onPress: () => reportUser(user, recipientIdStr, otherParticipantNameStr || "Unknown User", "MESSAGE_REPORTED", messageId, "Abusive Messages", messageText),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ]
+    );
+  };
 
   // Custom avatar rendering with FastImage
   const renderAvatar = useCallback((props: any) => {
@@ -344,6 +596,12 @@ const MessageDetail = () => {
           paddingBottom: 10,
         }}
         minInputToolbarHeight={44}
+        onLongPress={(context, message) => {
+          if (message.user._id === user?.id || (message as any).isReported) {
+            return;
+          }
+          openMessageOptions(message);
+        }}
       />
       {Platform.OS === "android" && <KeyboardAvoidingView behavior="padding" />}
     </View>
