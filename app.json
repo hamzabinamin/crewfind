@@ -40,7 +40,18 @@
       ],
       "package": "com.fulltrade.crewfind",
       "displayName": "CrewFind",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "com.googleusercontent.apps.229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
