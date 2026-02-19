@@ -44,9 +44,10 @@
       "intentFilters": [
         {
           "action": "VIEW",
+          "autoVerify": true,
           "data": [
             {
-              "scheme": "com.googleusercontent.apps.229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s"
+              "scheme": "com.fulltrade.crewfind"
             }
           ],
           "category": ["BROWSABLE", "DEFAULT"]
