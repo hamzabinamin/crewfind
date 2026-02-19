@@ -36,10 +36,7 @@ const Login = () => {
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const redirectUri = makeRedirectUri({
-    scheme: 'com.fulltrade.crewfind',
-    path: 'redirect'
-  });
+  const redirectUri = `https://auth.expo.io/@hamzabinamin/crewfind`;
 
   console.log('Redirect URI:', redirectUri); 
 
