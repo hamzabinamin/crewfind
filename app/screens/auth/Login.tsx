@@ -44,7 +44,7 @@ const Login = () => {
   const [request, response, promptAsync] = Google.useAuthRequest({
     webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
     iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com', // Add your iOS client ID
-    androidClientId: '229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com', // Add your Android client ID
+   // androidClientId: '229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com', // Add your Android client ID
     redirectUri: redirectUri,
   });
 
