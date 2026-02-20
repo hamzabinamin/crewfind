@@ -40,18 +40,12 @@ const Login = () => {
   //console.log('Redirect URI:', redirectUri); 
 
   // Google Auth Configuration
-  const [request, response, promptAsync] = Google.useAuthRequest(
-    Platform.OS === 'ios' 
-    ? {
-        // iOS uses native client
-        iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com',
-      }
-    : {
-        // Android uses web client with Expo proxy
-        webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
-        redirectUri: 'https://auth.expo.io/@hamzabinamin/crewfind',
-      }
-  );
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
+    iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com',
+    androidClientId: '229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com',
+    redirectUri: 'https://auth.expo.io/@hamzabinamin/crewfind',    
+  });
 
   useEffect(() => {
     if (response?.type === 'success') {
