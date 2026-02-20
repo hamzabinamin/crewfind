@@ -1,4 +1,4 @@
-import { Dimensions, View, TouchableOpacity, Text, Alert } from "react-native";
+import { Dimensions, View, TouchableOpacity, Text, Alert, Platform } from "react-native";
 import React, { useEffect, useState } from "react";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
@@ -22,7 +22,6 @@ import { useRouter } from "expo-router";
 import * as Google from 'expo-auth-session/providers/google';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
 
 // Complete the auth session
 WebBrowser.maybeCompleteAuthSession();
@@ -36,22 +35,28 @@ const Login = () => {
   const [isAppleAvailable, setIsAppleAvailable] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const redirectUri = `https://auth.expo.io/@hamzabinamin/crewfind`;
+  //const redirectUri = `https://auth.expo.io/@hamzabinamin/crewfind`;
 
-  console.log('Redirect URI:', redirectUri); 
+  //console.log('Redirect URI:', redirectUri); 
 
   // Google Auth Configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
-    iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com', // Add your iOS client ID
-   // androidClientId: '229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com', // Add your Android client ID
-    redirectUri: redirectUri,
-  });
+  const [request, response, promptAsync] = Google.useAuthRequest(
+    Platform.OS === 'ios' 
+    ? {
+        // iOS uses native client
+        iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com',
+      }
+    : {
+        // Android uses web client with Expo proxy
+        webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
+        redirectUri: 'https://auth.expo.io/@hamzabinamin/crewfind',
+      }
+  );
 
   useEffect(() => {
     if (response?.type === 'success') {
       const { authentication } = response;
-      handleGoogleSignIn(authentication?.accessToken);
+      handleGoogleSignIn(authentication?.idToken, authentication?.accessToken);
     }
   }, [response]);
 
@@ -347,14 +352,15 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async (accessToken?: string) => {
+  const handleGoogleSignIn = async (idToken?: string, accessToken?: string) => {
     try {
       setLoading(true);
-      if (!accessToken) {
-        Alert.alert('Error', 'Failed to get Google access token');
+      if (!idToken && !accessToken) {
+        Alert.alert('Error', 'Failed to get Google authentication tokens');
         return;
       }
-      const credential = GoogleAuthProvider.credential(null, accessToken);
+
+      const credential = GoogleAuthProvider.credential(idToken, accessToken);
       const userCredential = await signInWithCredential(auth, credential);
       await createOrUpdateUser(userCredential.user);
     } catch (error: any) {
