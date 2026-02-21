@@ -19,7 +19,7 @@ import {
 } from 'firebase/auth'
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useRouter } from "expo-router";
-import * as Google from 'expo-auth-session/providers/google';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -40,19 +40,11 @@ const Login = () => {
   //console.log('Redirect URI:', redirectUri); 
 
   // Google Auth Configuration
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
-    iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com',
-    androidClientId: '229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com',
-    redirectUri: 'https://auth.expo.io/@hamzabinamin/crewfind',    
-  });
-
   useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      handleGoogleSignIn(authentication?.idToken, authentication?.accessToken);
-    }
-  }, [response]);
+    GoogleSignin.configure({
+      webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
+    });
+  }, []);
 
   useEffect(() => {
     const checkAppleAvailability = async () => {
@@ -346,20 +338,38 @@ const Login = () => {
     }
   };
 
-  const handleGoogleSignIn = async (idToken?: string, accessToken?: string) => {
+  const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
-      if (!idToken && !accessToken) {
-        Alert.alert('Error', 'Failed to get Google authentication tokens');
+      
+      // Check if Google Play services are available
+      await GoogleSignin.hasPlayServices();
+      
+      // Sign in and get user info
+      const userInfo = await GoogleSignin.signIn();
+      
+      // Get the ID token
+      const idToken = userInfo.idToken;
+      
+      if (!idToken) {
+        Alert.alert('Error', 'Failed to get Google ID token');
         return;
       }
-
-      const credential = GoogleAuthProvider.credential(idToken, accessToken);
+      
+      // Create Firebase credential
+      const credential = GoogleAuthProvider.credential(idToken);
       const userCredential = await signInWithCredential(auth, credential);
       await createOrUpdateUser(userCredential.user);
     } catch (error: any) {
       console.error('Google sign in error:', error);
-      Alert.alert('Google Sign In Failed', error.message);
+      
+      // Handle specific error codes
+      if (error.code === '7') {
+        // User cancelled
+        console.log('User cancelled Google Sign-In');
+      } else {
+        Alert.alert('Google Sign In Failed', error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -526,7 +536,7 @@ const Login = () => {
               </OAuthButton>
             )} 
 
-            <OAuthButton onPress={() => promptAsync()} disabled={!request || loading}>
+            <OAuthButton onPress={handleGoogleSignIn} disabled={loading}>
               <Icon name="google" size={20} color="#000" />
               <OAuthText>Continue with Google</OAuthText>
             </OAuthButton>

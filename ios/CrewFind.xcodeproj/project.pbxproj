@@ -14,8 +14,8 @@
 		96905EF65AED1B983A6B3ABC /* libPods-CrewFind.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 58EEBF8E8E6FB1BC6CAF49B5 /* libPods-CrewFind.a */; };
 		B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		1F9DB42A25AA4C0E804EABB9 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = A00DA5CA23384FE2A6D878EF /* GoogleService-Info.plist */; };
-		0324C102BE8E4EA9A9750AC1 /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47703533887B46018DCF550A /* noop-file.swift */; };
+		4AD27A7EC5204D83A89F379E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 0345C838D8094D8095BE0F47 /* GoogleService-Info.plist */; };
+		AAA7299D888F46D69B68D18C /* noop-file.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E866B3B7FBE4A52A189E881 /* noop-file.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,9 +32,9 @@
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		FAC715A2D49A985799AEE119 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-CrewFind/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		A00DA5CA23384FE2A6D878EF /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "CrewFind/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
-		47703533887B46018DCF550A /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "CrewFind/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
-		878EF8BD4D284044B89C47A7 /* CrewFind-Bridging-Header.h */ = {isa = PBXFileReference; name = "CrewFind-Bridging-Header.h"; path = "CrewFind/CrewFind-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
+		0345C838D8094D8095BE0F47 /* GoogleService-Info.plist */ = {isa = PBXFileReference; name = "GoogleService-Info.plist"; path = "CrewFind/GoogleService-Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		3E866B3B7FBE4A52A189E881 /* noop-file.swift */ = {isa = PBXFileReference; name = "noop-file.swift"; path = "CrewFind/noop-file.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		3319AFBCF6734DB7BBA39097 /* CrewFind-Bridging-Header.h */ = {isa = PBXFileReference; name = "CrewFind-Bridging-Header.h"; path = "CrewFind/CrewFind-Bridging-Header.h"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,9 +59,9 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				13B07FB71A68108700A75B9A /* main.m */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				A00DA5CA23384FE2A6D878EF /* GoogleService-Info.plist */,
-				47703533887B46018DCF550A /* noop-file.swift */,
-				878EF8BD4D284044B89C47A7 /* CrewFind-Bridging-Header.h */,
+				0345C838D8094D8095BE0F47 /* GoogleService-Info.plist */,
+				3E866B3B7FBE4A52A189E881 /* noop-file.swift */,
+				3319AFBCF6734DB7BBA39097 /* CrewFind-Bridging-Header.h */,
 			);
 			name = CrewFind;
 			sourceTree = "<group>";
@@ -201,8 +201,8 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				1F9DB42A25AA4C0E804EABB9 /* GoogleService-Info.plist in Resources */,
-				2B9F0E09A1CC45A2BB7B036E /* CrewFind-Bridging-Header.h in Resources */,
+				4AD27A7EC5204D83A89F379E /* GoogleService-Info.plist in Resources */,
+				B8F5627AA92646588BA0264F /* CrewFind-Bridging-Header.h in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,7 +278,7 @@
 				13B07FBC1A68108700A75B9A /* AppDelegate.mm in Sources */,
 				13B07FC11A68108700A75B9A /* main.m in Sources */,
 				B18059E884C0ABDD17F3DC3D /* ExpoModulesProvider.swift in Sources */,
-				0324C102BE8E4EA9A9750AC1 /* noop-file.swift in Sources */,
+				AAA7299D888F46D69B68D18C /* noop-file.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

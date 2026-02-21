@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "229155847690-7ao16g0qekn0fabtrpq8r698d299tflg.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.fulltrade.crewfind",
-            "certificate_hash": "bc6d268660b0086c0aeccdb955eab4c8073b835d"
-          }
-        },
-        {
           "client_id": "229155847690-gc5np3p8ahnr151cma9k6u6hgrqrfo2s.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
