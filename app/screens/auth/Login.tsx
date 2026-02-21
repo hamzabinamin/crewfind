@@ -348,8 +348,9 @@ const Login = () => {
       // Sign in and get user info
       const userInfo = await GoogleSignin.signIn();
       
-      // Get the ID token
-      const idToken = userInfo.idToken;
+      // Get tokens - the structure is different
+      const tokens = await GoogleSignin.getTokens();
+      const idToken = tokens.idToken;
       
       if (!idToken) {
         Alert.alert('Error', 'Failed to get Google ID token');
