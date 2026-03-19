@@ -70,7 +70,7 @@ export default function Register() {
         </RoleOption>
       </ScrollViewContent>
 
-      <FixedBottom style={{ bottom: insets.bottom || 20 }}>
+      <FixedBottom style={{ bottom: insets.bottom + 30 }}>
         <NextButton
           disabled={!selectedRole}
           activeOpacity={selectedRole ? 0.7 : 1}
@@ -187,6 +187,7 @@ const FixedBottom = styled.View`
   position: absolute;
   left: 20px;
   right: 20px;
+  bottom: 0;
 `;
 
 const NextButton = styled(TouchableOpacity)`

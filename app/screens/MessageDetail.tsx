@@ -11,6 +11,7 @@ import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
 import LoadingIndicator from "../utilities/LoadingIndicator";
 import { setCurrentOpenChatId } from "../../hooks/usePushNotifications";
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 
@@ -70,6 +71,20 @@ const MessageDetail = () => {
     };
     fetchUser();
   }, []); 
+
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        // User logged out - clear state immediately
+        setUser(null);
+        setMessages([]);
+        messagesRef.current = [];
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
 
   // Preload avatars BEFORE rendering chat
   useEffect(() => {
@@ -204,10 +219,17 @@ const MessageDetail = () => {
 
       setMessages(fetched);
       messagesRef.current = fetched;
+    },
+    (error) => { // ← Add error handler here
+      // Silently ignore permission errors (happens during logout)
+      console.log("Error: ", error);
+      if (error.code !== 'permission-denied') {
+        console.error("Messages snapshot error:", error);
+      }
     });
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) unsubscribe(); // ← Better cleanup
       setCurrentOpenChatId(null);
     };
   }, [chatIdStr, user, otherParticipantNameStr, avatarUrls, avatarsLoaded]);
@@ -592,6 +614,7 @@ const MessageDetail = () => {
         renderUsernameOnMessage={false}
         renderAvatarOnTop
         infiniteScroll
+        bottomOffset={0}
         messagesContainerStyle={{
           paddingBottom: 10,
         }}
@@ -603,7 +626,7 @@ const MessageDetail = () => {
           openMessageOptions(message);
         }}
       />
-      {Platform.OS === "android" && <KeyboardAvoidingView behavior="padding" />}
+     {/* {Platform.OS === "android" && <KeyboardAvoidingView behavior="padding" />} */}
     </View>
   );
 };

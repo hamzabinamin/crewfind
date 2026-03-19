@@ -17,6 +17,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { doc, updateDoc } from "firebase/firestore";
@@ -66,6 +67,7 @@ const Register2 = () => {
   const [showLicenseModal, setShowLicenseModal] = useState(false);
   const [showLicenseTypeModal, setShowLicenseTypeModal] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -260,12 +262,12 @@ const Register2 = () => {
             <GroupLabel>Flying Hours PIC</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="tachometer" size={20} color="#999999" />
-              <Input placeholder="e.g., 500" keyboardType="numeric" value={flyingHoursPIC} onChangeText={setFlyingHoursPIC} />
+              <Input placeholder="e.g., 500" keyboardType="number-pad" value={flyingHoursPIC} onChangeText={setFlyingHoursPIC} />
             </InputContainer>
             <GroupLabel>Flying Hours Total</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="tachometer" size={20} color="#999999" />
-              <Input placeholder="e.g., 1200" keyboardType="numeric" value={flyingHoursTotal} onChangeText={setFlyingHoursTotal} />
+              <Input placeholder="e.g., 1200" keyboardType="number-pad" value={flyingHoursTotal} onChangeText={setFlyingHoursTotal} />
             </InputContainer>
           </>
         ) : (
@@ -273,14 +275,14 @@ const Register2 = () => {
             <GroupLabel>Years of Experience</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="history" size={20} color="#999999" />
-              <Input placeholder="e.g., 5" keyboardType="numeric" value={yearsOfExperience} onChangeText={setYearsOfExperience} />
+              <Input placeholder="e.g., 5" keyboardType="number-pad" value={yearsOfExperience} onChangeText={setYearsOfExperience} />
             </InputContainer>
           </>
         )}
       </KeyboardAwareScrollView>
 
       {/* Fixed button with safe area */}
-      <ButtonContainer>
+      <ButtonContainer style={{ paddingBottom: insets.bottom + 30 }}>
         <NextButton onPress={validateAndContinue}>
           <NextButtonText>{(isFromSettings) ? "Save" : "Next"}</NextButtonText>
         </NextButton>

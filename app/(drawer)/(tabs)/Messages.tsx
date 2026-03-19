@@ -11,6 +11,7 @@ import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import {  QueryDocumentSnapshot, DocumentData, collection, query, getDocs, getDoc, updateDoc, doc, deleteDoc, where, limit, orderBy, onSnapshot, arrayRemove } from 'firebase/firestore';
 import { db } from "../../../FirebaseConfig";
 import { MaterialIcons } from '@expo/vector-icons';
@@ -133,7 +134,21 @@ const Messages = () => {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    const auth = getAuth();
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    if (!firebaseUser) {
+      // User logged out - clear state immediately
+      setUser(null);
+      setCrewChats([]);
+      setAirlineChats([]);
+    }
+  });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    if (!user || !user.id) return;
 
     const q = query(collection(db, "Chats"), where("participants", "array-contains", user.id));
     const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -144,9 +159,18 @@ const Messages = () => {
       } catch (error) {
         console.error("Error processing chat snapshot:", error);
       }
+    },
+    (error) => { // ← Add error handler here
+      console.log("Error: ", error);
+      // Silently ignore permission errors (happens during logout)
+      if (error.code !== 'permission-denied') {
+        console.error("Firestore snapshot error:", error);
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) unsubscribe(); // ← Better cleanup
+    };
   }, [user]);
 
   useFocusEffect(

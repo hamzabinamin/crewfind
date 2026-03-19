@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform } from "react-native";
+import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform, BackHandler } from "react-native";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from '@react-navigation/native';
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -15,12 +16,13 @@ import haversine from "haversine-distance";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import usePushNotifications from "../../../hooks/usePushNotifications";
 import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from "firebase/firestore";
-import { db } from "../../../FirebaseConfig";
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { db, auth } from "../../../FirebaseConfig";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const CrewFind = () => {
-  usePushNotifications(); 
+//  usePushNotifications(); 
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [crew, setCrew] = useState<User[]>([]);
@@ -33,6 +35,7 @@ const CrewFind = () => {
 //  const [isFriend, setIsFriend] = useState(false);
 //  const [isBlocked, setIsBlocked] = useState(false);
   const [crewModalVisible, setCrewModalVisible] = useState(false);
+  const isOpeningRef = useRef(false);
  // const [selectedOption, setSelectedOption] = useState("All");
   const [selectedPosition, setSelectedPosition] = useState<"All" | "Pilot" | "Cabin Crew">("All");
   const [selectedFriendsOnly, setSelectedFriendsOnly] = useState<"All" | "Friends Only">("All");
@@ -76,6 +79,18 @@ const CrewFind = () => {
     return baseCoordinates[baseName] || null;
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        return true; // Prevent default back behavior
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
+
   useEffect(() => {
     console.log("Inside Home's useEffect");
     fetchUserFromStorage();
@@ -86,8 +101,25 @@ const CrewFind = () => {
   }, [user]);
 
   useEffect(() => {
-    const handleFriendsChanged = () => {
+    const auth = getAuth();
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        // User logged out - clear state
+        setUser(null);
+        setCrew([]);
+        setOriginalCrew([]);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  useEffect(() => {
+    const handleFriendsChanged = async () => {
       console.log("friendsChanged event received");
+      const storedUser = await UtilFunctions.getUser();
+      if (!storedUser || !auth.currentUser) return; 
+
       fetchUserFromStorage();
       fetchUserLocationAndCrew();
     };
@@ -99,8 +131,11 @@ const CrewFind = () => {
   }, []);
 
   useEffect(() => {
-    const handleBlockedChanged = () => {
+    const handleBlockedChanged = async () => {
       console.log("blockedChanged event received");
+      const storedUser = await UtilFunctions.getUser();
+      if (!storedUser || !auth.currentUser) return; 
+
       fetchUserFromStorage();
       fetchUserLocationAndCrew();
     };
@@ -114,14 +149,25 @@ const CrewFind = () => {
   useEffect(() => {
     const listener = () => {
       console.log("Filter event received in Home!");
+
+      if (isOpeningRef.current || crewModalVisible) {
+        console.log("Modal already opening or open, ignoring");
+        return;
+      }
+
+      isOpeningRef.current = true;
       setCrewModalVisible(true);
+
+      setTimeout(() => {
+        isOpeningRef.current = false;
+      }, 500);
     };
     eventEmitter.on("openFilter:CrewFind", listener);
   
     return () => {
       eventEmitter.off("openFilter:CrewFind", listener);
     };
-  }, []);
+  }, [crewModalVisible]);
 
   useEffect(() => {
   if (search.trim() === "") {
@@ -158,7 +204,11 @@ const CrewFind = () => {
 
  const fetchUserLocationAndCrew = async () => {
     console.log("Inside fetchUserLocationAndCrew");
-    if (!user) return;
+    
+    if (!user || !auth.currentUser) {
+      console.log("No user or not authenticated, skipping fetch");
+      return;
+    }
     
     try {
       setRefreshing(true);

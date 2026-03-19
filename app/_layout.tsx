@@ -1,42 +1,74 @@
-import { View, Text, Button, TouchableOpacity, AppState, AppStateStatus, StyleSheet } from "react-native";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, Button, TouchableOpacity, AppState, AppStateStatus, StyleSheet, ActivityIndicator } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { auth } from "../FirebaseConfig";
 
 export default function _layout() {
 
-  const customHeaderStyle = StyleSheet.create({
-  header: {
-    backgroundColor: "#ffffff",         // Required to make border visible
-    borderBottomWidth: 1,              // The actual bottom border
-    borderBottomColor: "#dcdcdc",      // Light grey border color
-    elevation: 0,                      // Removes shadow on Android
-    shadowOpacity: 0,      
-  },
-});
 
   const appState = useRef(AppState.currentState);
 
-  // Update the "lastSeen" timestamp when the app comes to the foreground
-
-
   useEffect(() => {
     // Initial last seen update when the app is loaded
-    UtilFunctions.updateLastSeen();
+    const updateIfAuthenticated = async () => {
+      const user = auth.currentUser; // Check if logged in
+      if (user) {
+        await UtilFunctions.updateLastSeen();
+      }
+    };
 
-    const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
+    updateIfAuthenticated();
+
+    const subscription = AppState.addEventListener("change", async (nextAppState: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && nextAppState === "active") {
-        UtilFunctions.updateLastSeen(); // When the app resumes
+        const user = auth.currentUser; // Check if logged in
+        if (user) {
+          await UtilFunctions.updateLastSeen(); // Only update if authenticated
+        }
       }
       appState.current = nextAppState;
     });
 
     return () => {
-      subscription.remove(); // Clean up the listener when the component unmounts
+      subscription.remove();
     };
   }, []);
 
+  useEffect(() => {
+    const originalError = console.error;
+    const originalWarn = console.warn;
+    const originalLog = console.log;
+
+    const shouldSuppress = (message: any) => {
+      const msg = message?.toString() || '';
+      return msg.includes('permission-denied') || 
+            msg.includes('Missing or insufficient permissions') ||
+            msg.includes('@firebase/firestore');
+    };
+
+    console.error = (...args) => {
+      if (shouldSuppress(args[0])) return;
+      originalError(...args);
+    };
+
+    console.warn = (...args) => {
+      if (shouldSuppress(args[0])) return;
+      originalWarn(...args);
+    };
+
+    console.log = (...args) => {
+      if (shouldSuppress(args[0])) return;
+      originalLog(...args);
+    };
+
+    return () => {
+      console.error = originalError;
+      console.warn = originalWarn;
+      console.log = originalLog;
+    };
+  }, []);
 
   return (
     <Stack>

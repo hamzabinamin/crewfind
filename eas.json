@@ -9,7 +9,14 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EAS_LOCAL_BUILD_SKIP_CLEANUP": "1",
+        "EXPO_NO_DOCTOR": "1"
+      }
     },
     "iospreview": {
       "ios": {

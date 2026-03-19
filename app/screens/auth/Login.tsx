@@ -1,5 +1,6 @@
-import { Dimensions, View, TouchableOpacity, Text, Alert, Platform } from "react-native";
+import { Dimensions, View, TouchableOpacity, Text, Alert, BackHandler, Platform } from "react-native";
 import React, { useEffect, useState } from "react";
+import { useNavigation } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -17,7 +18,7 @@ import {
   GoogleAuthProvider,
   OAuthProvider
 } from 'firebase/auth'
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDocFromServer, setDoc } from "firebase/firestore";
 import { useRouter } from "expo-router";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
@@ -28,6 +29,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const Login = () => {
   const router = useRouter();
+  const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({ email: "", password: "" });
@@ -39,7 +41,20 @@ const Login = () => {
 
   //console.log('Redirect URI:', redirectUri); 
 
-  // Google Auth Configuration
+  useEffect(() => {
+    // Disable swipe-back gesture on iOS
+    navigation.setOptions({
+      gestureEnabled: false,
+    });
+  }, [navigation]);
+
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      return true; // Prevent back navigation
+    });
+    return () => backHandler.remove();
+  }, []);
+  
   useEffect(() => {
     GoogleSignin.configure({
       webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
@@ -70,7 +85,16 @@ const Login = () => {
     try {
       console.log("firebaseUser.uid: ", firebaseUser.uid);
       const userDocRef = doc(db, "Users", firebaseUser.uid);
-      const userDoc = await getDoc(userDocRef);
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const userDoc = await getDocFromServer(userDocRef);
+
+      console.log("🔍 Document exists?", userDoc.exists());
+      console.log("🔍 Document ID:", userDoc.id);
+      console.log("🔍 Raw data:", userDoc.data());
+      console.log("🔍 All fields:", JSON.stringify(userDoc.data(), null, 2));
+
 
       let userData;
       let isNewUser = false;
@@ -86,9 +110,8 @@ const Login = () => {
         console.log("Got here after account deactivated return");
 
         // Check if user profile is incomplete (for existing OAuth users who haven't completed registration)
-        const isProfileIncomplete = !userData.base || !userData.nationality || 
-                                  !userData.position || !userData.companyName || 
-                                  userData.age === 0 || !userData.sex;
+        const isProfileIncomplete = !userData.position || !userData.companyName || 
+                                  !userData.hobbies || userData.hobbies.length === 0;
 
         console.log("isProfileIncomplete: ", isProfileIncomplete);
         console.log("Base: ", userData.base);
@@ -436,7 +459,12 @@ const Login = () => {
   };
 
   const handleContinueAsGuest = async () => {
-    router.replace("../../(drawer)/(tabs)/CrewFind");
+    if (Platform.OS === 'ios') {
+      router.replace("../../(drawer)/(tabs)/CrewFind");
+    } 
+    else {
+      router.push("../../(drawer)/(tabs)/CrewFind");
+    }
   };
 
   const handleRegisterPress = () => router.push({

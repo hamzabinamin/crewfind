@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { View, Text, Image, StyleSheet, Alert, Platform } from "react-native";
+import { router } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Drawer } from 'expo-router/drawer';
 import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
@@ -8,13 +9,16 @@ import { User } from "../models/User";
 import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image"
+import usePushNotifications from "../../hooks/usePushNotifications";
 import { auth } from '../../FirebaseConfig';
 import { getAuth } from 'firebase/auth';
-import { router } from "expo-router";
+import { CommonActions } from '@react-navigation/native';
 
 export default function DrawerLayout() {
   const [hasStoredUser, setHasStoredUser] = useState(false);
   const isMountedRef = useRef(false);
+
+  usePushNotifications();
 
   useEffect(() => {
     const fetchUserFromStorage = async () => {
@@ -25,7 +29,7 @@ export default function DrawerLayout() {
     fetchUserFromStorage();
   }, []);
 
-  useEffect(() => {
+ /* useEffect(() => {
     isMountedRef.current = true;
 
     const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
@@ -37,14 +41,14 @@ export default function DrawerLayout() {
         } catch (error) {
           console.error("Error clearing user:", error);
         } */
-      }
-    });
+     // } 
+   /* });
 
     return () => {
       isMountedRef.current = false;
       unsubscribe();
     };
-  }, []);
+  }, []); */
 
   return (
     <Drawer
@@ -200,19 +204,12 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         {
           text: "Logout",
           style: "destructive",
-          onPress: async () => { 
-            auth.signOut()
+          onPress: async () => {
+            props.navigation.closeDrawer();
             await AsyncStorage.removeItem("user");
-            
-            if (Platform.OS === 'android') {
-              router.push("/screens/auth/Login");
-              setTimeout(() => {
-                router.dismissAll();
-              }, 100);
-            } else {
-              router.replace("/screens/auth/Login");
-            }
-          }, 
+            await auth.signOut();
+            router.push("/screens/auth/Login");
+          },
         },
       ]
     );

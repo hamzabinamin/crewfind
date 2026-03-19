@@ -4,6 +4,7 @@ import styled from "styled-components/native";
 import { useRouter } from "expo-router";
 import { User } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { GeoPoint } from "firebase/firestore";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { sendEmailVerification } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
@@ -77,6 +78,7 @@ const VerifyEmail = () => {
                 flyingHoursPIC: userData.flyingHoursPIC || 0,
                 flyingHoursTotal: userData.flyingHoursTotal || 0,
                 yearsOfExperience: userData.yearsOfExperience || 0,
+                userCoordinates: userData.userCoordinates || new GeoPoint(0, 0),
                 friends: userData.friends,
                 blocked: userData.blocked,
                 lastSeen: userData.lastSeen ? userData.lastSeen.toDate?.() ?? new Date(userData.lastSeen) : null,

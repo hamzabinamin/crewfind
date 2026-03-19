@@ -2,7 +2,6 @@
   "expo": {
     "name": "CrewFind",
     "slug": "crewfind",
-    "displayName": "CrewFind",
     "version": "1.0.17",
     "newArchEnabled": true,
     "orientation": "portrait",
@@ -16,7 +15,6 @@
     },
     "ios": {
       "bundleIdentifier": "com.fulltrade.crewfind",
-      "displayName": "CrewFind",
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -24,7 +22,8 @@
         "NSLocationWhenInUseUsageDescription": "Your location is used to show nearby crew members and crew specials within 150 km of your position, such as recommending the closest crew members to you.",
         "NSCameraUsageDescription": "This app uses the camera to let you take a profile or background photo for your CrewFind account.",
         "NSPhotoLibraryUsageDescription": "This app accesses your photo library so you can upload a profile or background image to your CrewFind account.",
-        "NSPhotoLibraryAddUsageDescription": "This app may save photos to your library when you update your profile or background image."
+        "NSPhotoLibraryAddUsageDescription": "This app may save photos to your library when you update your profile or background image.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,12 +33,9 @@
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
       "package": "com.fulltrade.crewfind",
-      "displayName": "CrewFind",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
         {
@@ -50,7 +46,10 @@
               "scheme": "com.fulltrade.crewfind"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -71,7 +70,15 @@
           "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-build-properties", 
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

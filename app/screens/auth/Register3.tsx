@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User } from "../../models/User";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FastImage from "react-native-fast-image";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
@@ -43,7 +44,7 @@ const Register3 = () => {
   const [termsError, setTermsError] = useState(false);
   const isFromSettings = params.cameFromSettings === "true";
   const isFromLogin = params.cameFromLogin === "true";
-
+  const insets = useSafeAreaInsets();
   const firestore = getFirestore();
 
   useEffect(() => {
@@ -378,7 +379,7 @@ const Register3 = () => {
         </ScrollView>
 
         {/* Fixed button */}
-        <FixedBottom>
+        <FixedBottom style={{ paddingBottom: insets.bottom + 30 }}>
           <NextButton onPress={handleCompleteRegistration}>
             <NextButtonText>
               {isFromSettings ? "Save" : "Complete Registration"}

@@ -20,7 +20,7 @@ import Icon from "react-native-vector-icons/FontAwesome";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import { User, createUser } from "../../models/User";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import DismissKeyboardView from "../../../components/DismissKeyboardView";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView, KeyboardAwareFlatList } from 'react-native-keyboard-aware-scroll-view';
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { doc, updateDoc } from "firebase/firestore";
@@ -122,6 +122,7 @@ const Register = () => {
   const { cameFromLogin, cameFromSettings, role  } = useLocalSearchParams();
   const isFromSettings = cameFromSettings === "true";
   const isFromLogin = cameFromLogin === "true";
+  const insets = useSafeAreaInsets();
 
   console.log('Route params:', { isFromSettings, isFromLogin, role });
 
@@ -483,7 +484,7 @@ const Register = () => {
       </KeyboardAwareScrollView>
 
       {/* Fixed button with safe area */}
-      <ButtonContainer>
+      <ButtonContainer style={{ paddingBottom: insets.bottom + 30 }}>
         <NextButton onPress={handleNext}>
           <NextButtonText>{(isFromSettings) ? "Step 1 of 2" : "Next"}</NextButtonText>
         </NextButton>
@@ -691,6 +692,7 @@ const CharacterLimit = styled.Text`
 // New styled component for button container
 const ButtonContainer = styled.View`
   padding: 20px;
+  padding-bottom: 30px;
   background-color: #fff;
   border-top-width: 1px;
   border-top-color: #eee;
