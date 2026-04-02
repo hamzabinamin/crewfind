@@ -7,7 +7,7 @@ import LoadingIndicator from "../utilities/LoadingIndicator";
 import { User } from "../models/User";
 import { Airline } from "../models/Airline";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import { db } from "../../FirebaseConfig";
 import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
 
@@ -107,11 +107,10 @@ const Airlines = () => {
     <AirlineRow>
       <AirlineLogo
         source={{
-          uri: item.logoImageUrl,
-          priority: FastImage.priority.normal,
-          cache: FastImage.cacheControl.immutable,
+          uri: item.logoImageUrl
         }}
-        resizeMode={FastImage.resizeMode.cover}
+        contentFit="cover"
+        cachePolicy="memory-disk"
       />
       <AirlineName>{item.name}</AirlineName>
       <ChatButton onPress={() => navigateToChat(item.id ?? "", chatIds[item.id ?? ""] ?? "", item)}>
@@ -173,7 +172,7 @@ const AirlineRow = styled.View`
   margin-bottom: 12px;
 `;
 
-const AirlineLogo = styled(FastImage)`
+const AirlineLogo = styled(Image)`
   width: 50px;
   height: 50px;
   margin-right: 15px;

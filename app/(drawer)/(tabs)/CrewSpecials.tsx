@@ -4,7 +4,6 @@ import {
   Dimensions,
   Text,
   View,
-  Image,
   TouchableOpacity,
   Alert,
   Linking,
@@ -24,7 +23,7 @@ import haversine from 'haversine-distance';
 import { useRouter } from "expo-router";
 import { Special } from "../../models/Special";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { User } from "../../models/User";
 import { db } from "../../../FirebaseConfig";
@@ -423,14 +422,15 @@ export default function Specials() {
       <View style={[styles.card, isExpanded && styles.expandedCard]}>
         <TouchableOpacity onPress={() => toggleExpanded(item.id)}>
           <View style={styles.cardHeader}>
-            <FastImage
-              source={{
-                uri: item.companyImageUrl,
-                priority: FastImage.priority.normal,
-                cache: FastImage.cacheControl.immutable,
-              }}
+            <Image
+              source={
+                item.companyImageUrl 
+                  ? { uri: item.companyImageUrl }
+                  : { uri: "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png" }
+              }
               style={styles.companyIcon}
-              resizeMode={FastImage.resizeMode.cover}
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
             <View style={styles.cardHeaderContent}>
               <Text style={styles.cardTitle}>{item.companyName}</Text>
@@ -468,14 +468,15 @@ export default function Specials() {
           <View style={styles.expandedContent}>
             {/* Company Logo Banner */}
             <View style={styles.expandedBanner}>
-              <FastImage
-                source={{
-                  uri: item.backgroundImageUrl,
-                  priority: FastImage.priority.high,
-                  cache: FastImage.cacheControl.immutable,
-                }}
+              <Image
+                source={
+                  item.backgroundImageUrl
+                    ? { uri: item.backgroundImageUrl }
+                    : { uri: "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png" }
+                }
                 style={styles.expandableBannerImage}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             </View>
 

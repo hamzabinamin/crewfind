@@ -9,7 +9,7 @@ import { Chat } from "../../models/Chat";
 import { ChatParticipant } from "../../models/Chat";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import {  QueryDocumentSnapshot, DocumentData, collection, query, getDocs, getDoc, updateDoc, doc, deleteDoc, where, limit, orderBy, onSnapshot, arrayRemove } from 'firebase/firestore';
@@ -369,11 +369,10 @@ const Messages = () => {
             <ChatItem blocked={isBlocked}>
               <ChatImage
                 source={{
-                  uri: other.imageUrl,
-                  priority: FastImage.priority.normal,
-                  cache: FastImage.cacheControl.immutable,
+                  uri: other.imageUrl
                 }}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
                 style={{ opacity: isBlocked ? 0.5 : 1 }}
               />
               <ChatDetails>
@@ -631,7 +630,7 @@ const UnblockButtonText = styled.Text`
   font-weight: 600;
 `;
 
-const ChatImage = styled(FastImage)`
+const ChatImage = styled(Image)`
   width: 50px;
   height: 50px;
   border-radius: 25px;

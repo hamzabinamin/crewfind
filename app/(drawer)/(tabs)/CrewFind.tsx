@@ -11,7 +11,7 @@ import * as Location from 'expo-location';
 import { User } from "../../models/User";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import { baseCoordinates } from "@/app/utilities/baseCoordinates";
 import haversine from "haversine-distance";
 import LoadingIndicator from "../../utilities/LoadingIndicator";
@@ -659,16 +659,15 @@ const CrewFind = () => {
                 source={
                   item.profileImage
                     ? {
-                        uri: item.profileImage,
-                        priority: FastImage.priority.high,
-                        cache: FastImage.cacheControl.immutable,
+                        uri: item.profileImage
                       }
                     : {
-                        uri: "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png", // fallback placeholder
-                        priority: FastImage.priority.low,
+                        uri: "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png"
                       }
                 }
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
               />
               {UtilFunctions.getLastSeenText(item.lastSeen) === "NOW" && <OnlineDot />}
             </ProfileImageWrapper>
@@ -743,11 +742,11 @@ const CrewFind = () => {
               <BackgroundImageSection>
                 <BackgroundImage
                   source={{
-                    uri: item.backgroundImage,
-                    priority: FastImage.priority.high,
-                    cache: FastImage.cacheControl.immutable,
+                    uri: item.backgroundImage
                   }}
-                  resizeMode={FastImage.resizeMode.cover}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
                 />
               </BackgroundImageSection>
 
@@ -1113,7 +1112,7 @@ const ProfileImageWrapper = styled.View`
   margin-right: 12px;
 `;
 
-const ProfileImage = styled(FastImage)`
+const ProfileImage = styled(Image)`
   width: 50px;
   height: 50px;
   border-radius: 8px;
@@ -1124,8 +1123,8 @@ const ProfileImage = styled(FastImage)`
   margin-top: -15px;
 `;
 
-const VerifiedBadge = styled(FastImage).attrs({
-  resizeMode: FastImage.resizeMode.contain,
+const VerifiedBadge = styled(Image).attrs({
+  contentFit: "contain",
   source: require("../../../assets/images/verified-badge.png"),
 })`
   width: 20px;
@@ -1185,7 +1184,7 @@ const BackgroundImageSection = styled.View`
   margin-bottom: 16px;
 `;
 
-const BackgroundImage = styled(FastImage)`
+const BackgroundImage = styled(Image)`
   width: 100%;
   height: 100%;
   resize-mode: cover;

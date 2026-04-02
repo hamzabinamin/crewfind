@@ -8,8 +8,7 @@ import { User } from "../models/User";
 import { Message } from "../models/Message";
 import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
-import LoadingIndicator from "../utilities/LoadingIndicator";
+import { Image } from "expo-image";
 import { setCurrentOpenChatId } from "../../hooks/usePushNotifications";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { collection, query, orderBy, onSnapshot, doc, getDoc, addDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
@@ -87,7 +86,7 @@ const MessageDetail = () => {
   }, []);
 
   // Preload avatars BEFORE rendering chat
-  useEffect(() => {
+/*  useEffect(() => {
     const preloadAvatars = async () => {
       if (!user) return;
 
@@ -116,6 +115,34 @@ const MessageDetail = () => {
     };
 
     preloadAvatars();
+  }, [user, avatarUrls]); */
+
+  // Preload avatars BEFORE rendering chat
+  useEffect(() => {
+    const preloadAvatars = async () => {
+      if (!user) return;
+
+      const urlsToPreload = [
+        avatarUrls.currentUser,
+        avatarUrls.otherUser,
+      ].filter(Boolean);
+
+      if (urlsToPreload.length > 0) {
+        try {
+          // expo-image uses Image.prefetch
+          await Image.prefetch(urlsToPreload);
+          // Add small delay to ensure images are in cache
+          setTimeout(() => setAvatarsLoaded(true), 100);
+        } catch (error) {
+          console.log("Avatar preload error:", error);
+          setAvatarsLoaded(true);
+        }
+      } else {
+        setAvatarsLoaded(true);
+      }
+    };
+
+    preloadAvatars();
   }, [user, avatarUrls]);
 
   // Set custom header with avatar
@@ -123,10 +150,9 @@ const MessageDetail = () => {
     navigation.setOptions({
       headerTitle: () => (
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <FastImage
+          <Image
             source={{
-              uri: avatarUrls.otherUser,
-              priority: FastImage.priority.normal,
+              uri: avatarUrls.otherUser
             }}
             style={{
               width: 32,
@@ -136,7 +162,8 @@ const MessageDetail = () => {
               borderColor: "#1c1c88",
               marginRight: 8,
             }}
-            resizeMode={FastImage.resizeMode.cover}
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
           <Text
             style={{
@@ -500,11 +527,9 @@ const MessageDetail = () => {
   const renderAvatar = useCallback((props: any) => {
     return (
       <View style={{ marginBottom: 4, marginHorizontal: 8 }}>
-        <FastImage
+        <Image
           source={{
-            uri: props.currentMessage.user.avatar,
-            priority: FastImage.priority.high,
-            cache: FastImage.cacheControl.immutable,
+            uri: props.currentMessage.user.avatar
           }}
           style={{
             width: 36,
@@ -513,7 +538,8 @@ const MessageDetail = () => {
             borderWidth: 1,
             borderColor: "#1c1c88",
           }}
-          resizeMode={FastImage.resizeMode.cover}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
       </View>
     );

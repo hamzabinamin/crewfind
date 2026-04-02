@@ -3,7 +3,6 @@ import {
   FlatList, 
   View, 
   Text, 
-  Image, 
   TouchableOpacity, 
   Modal, 
   TouchableWithoutFeedback, 
@@ -25,7 +24,7 @@ import { JobPost } from "../../models/JobPost";
 import { Airline } from "../../models/Airline";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import { getAuth } from "firebase/auth";
 import { db } from "../../../FirebaseConfig";
 import { collection, doc, getDocs, getDoc, query, where } from "firebase/firestore";
@@ -280,14 +279,13 @@ const Jobs = () => {
       <View style={[styles.card, isExpanded && styles.expandedCard]}>
         <TouchableOpacity onPress={() => toggleExpanded(item.id)}>
           <View style={styles.cardHeader}>
-           <FastImage
+           <Image
               source={{
-                uri: item.airline.logoImageUrl,
-                priority: FastImage.priority.normal,
-                cache: FastImage.cacheControl.immutable,
+                uri: item.airline.logoImageUrl
               }}
               style={styles.companyIcon}
-              resizeMode={FastImage.resizeMode.contain}
+              contentFit="contain"
+              cachePolicy="memory-disk"
             />
             <View style={styles.cardHeaderContent}>
               <Text style={styles.cardTitle}>{item.airline.name}</Text>
@@ -327,14 +325,13 @@ const Jobs = () => {
           <View style={styles.expandedContent}>
             {/* Company Banner */}
             <View style={styles.expandedBanner}>
-              <FastImage
+              <Image
                 source={{
-                  uri: item.airline.backgroundImageUrl,
-                  priority: FastImage.priority.high,
-                  cache: FastImage.cacheControl.immutable,
+                  uri: item.airline.backgroundImageUrl
                 }}
                 style={styles.expandableBannerImage}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             </View>
 

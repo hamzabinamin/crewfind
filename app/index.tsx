@@ -2,15 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "expo-router";
 import { View, StyleSheet, Dimensions, ActivityIndicator } from "react-native";
 import { getAuth, onAuthStateChanged, User } from "firebase/auth";
-import { Video, ResizeMode } from "expo-av";
-import type { AVPlaybackStatus } from "expo-av";
+import { useVideoPlayer, VideoView } from "expo-video";
 
 export default function Index() {
   const router = useRouter();
-  const videoRef = useRef<Video>(null);
+ // const videoRef = useRef<Video>(null);
   const [videoFinished, setVideoFinished] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  const player = useVideoPlayer(require("../assets/animation/startup.mp4"), player => {
+    player.loop = false;
+    player.play();
+  });
+
+  useEffect(() => {
+    const subscription = player.addListener('playToEnd', () => {
+      setVideoFinished(true);
+    });
+
+    return () => subscription.remove();
+  }, [player]);
 
   // Step 1: After video finishes, then check auth state
   useEffect(() => {
@@ -40,18 +52,11 @@ export default function Index() {
   return (
     <View style={styles.container}>
       {!videoFinished ? (
-        <Video
-          ref={videoRef}
-          source={require("../assets/animation/startup.mp4")}
+        <VideoView
+          player={player}
           style={styles.video}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping={false}
-          onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
-            if (status.isLoaded && status.didJustFinish) {
-              setVideoFinished(true);
-            }
-          }}
+          contentFit="cover"
+          nativeControls={false}
         />
       ) : (
         <ActivityIndicator size="large" color="#5DCBCF" />
@@ -64,6 +69,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+    justifyContent: "center", // Centers vertically
+    alignItems: "center",
   },
   video: {
     width: Dimensions.get("window").width,

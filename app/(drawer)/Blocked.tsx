@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { User } from "../models/User";
 import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import LoadingIndicator from "../utilities/LoadingIndicator";
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
@@ -330,10 +330,10 @@ const Blocked = () => {
             <ProfileImageWrapper>
                <ProfileImage
                 source={{
-                  uri: item.profileImage,
-                  priority: FastImage.priority.normal,
+                  uri: item.profileImage
                 }}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             </ProfileImageWrapper>
             
@@ -399,10 +399,10 @@ const Blocked = () => {
               <BackgroundImageSection>
                 <BackgroundImage
                   source={{
-                    uri: item.backgroundImage,
-                    priority: FastImage.priority.normal,
+                    uri: item.backgroundImage
                   }}
-                  resizeMode={FastImage.resizeMode.cover}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
               </BackgroundImageSection>
 
@@ -641,7 +641,7 @@ const ProfileImageWrapper = styled.View`
   margin-right: 12px;
 `;
 
-const ProfileImage = styled(FastImage)`
+const ProfileImage = styled(Image)`
   width: 50px;
   height: 50px;
   border-radius: 8px;
@@ -652,8 +652,8 @@ const ProfileImage = styled(FastImage)`
   margin-top: -5px;
 `;
 
-const VerifiedBadge = styled(FastImage).attrs({
-  resizeMode: FastImage.resizeMode.contain,
+const VerifiedBadge = styled(Image).attrs({
+  contentFit: "contain",
   source: require("../../assets/images/verified-badge.png"),
 })`
   width: 20px;
@@ -693,7 +693,7 @@ const BackgroundImageSection = styled.View`
   height: 120px;
 `;
 
-const BackgroundImage = styled(FastImage)`
+const BackgroundImage = styled(Image)`
   width: 100%;
   height: 100%;
 `;

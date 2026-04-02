@@ -19,7 +19,7 @@ import { User } from "../../models/User";
 import eventEmitter from "../../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import FastImage from "react-native-fast-image";
+import { Image } from "expo-image";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
 import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -330,11 +330,10 @@ const Register3 = () => {
                 source={{
                   uri:
                     profileImage?.uri ||
-                    "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
-                  priority: FastImage.priority.normal,
-                  cache: FastImage.cacheControl.immutable,
+                    "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png"
                 }}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             ) : (
               <Icon name="camera" size={30} color="#B0B5C0" />
@@ -346,11 +345,10 @@ const Register3 = () => {
             {backgroundImage ? (
               <Preview
                 source={{
-                  uri: backgroundImage?.uri,
-                  priority: FastImage.priority.normal,
-                  cache: FastImage.cacheControl.immutable,
+                  uri: backgroundImage?.uri
                 }}
-                resizeMode={FastImage.resizeMode.cover}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             ) : (
               <Icon name="image" size={30} color="#B0B5C0" />
@@ -506,7 +504,7 @@ const UploadNote = styled.Text`
   margin-top: 10px;
 `;
 
-const Preview = styled(FastImage)`
+const Preview = styled(Image)`
   width: 100%;
   height: 100%;
   border-radius: 15px;

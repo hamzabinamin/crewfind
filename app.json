@@ -72,7 +72,7 @@
       ],
       "expo-video",
       [
-        "expo-build-properties", 
+        "expo-build-properties",
         {
           "ios": {
             "useFrameworks": "static"
@@ -84,7 +84,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

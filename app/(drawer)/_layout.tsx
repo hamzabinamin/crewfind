@@ -8,7 +8,7 @@ import type { DrawerContentComponentProps } from "@react-navigation/drawer";
 import { User } from "../models/User";
 import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
-import FastImage from "react-native-fast-image"
+import { Image as EImage } from "expo-image";
 import usePushNotifications from "../../hooks/usePushNotifications";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth } from '../../FirebaseConfig';
@@ -238,16 +238,15 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
     <DrawerContentScrollView {...props}>
       {/* Profile Section */}
       <View style={styles.profileSection}>
-        <FastImage
+        <EImage
           source={{
             uri:
               user?.profileImage ||
               "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png",
-            priority: FastImage.priority.high,
-            cache: FastImage.cacheControl.immutable,
           }}
           style={styles.profileImage}
-          resizeMode={FastImage.resizeMode.cover}
+          contentFit="cover"
+          cachePolicy="memory-disk"
         />
         <Text style={styles.profileName}>{user?.name || "User"}</Text>
       </View>
