@@ -20,12 +20,12 @@ import {
 } from 'firebase/auth'
 import { doc, getDocFromServer, setDoc } from "firebase/firestore";
 import { useRouter } from "expo-router";
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 
 // Complete the auth session
-WebBrowser.maybeCompleteAuthSession();
+//WebBrowser.maybeCompleteAuthSession();
 
 const Login = () => {
   const router = useRouter();
@@ -41,6 +41,11 @@ const Login = () => {
 
   //console.log('Redirect URI:', redirectUri); 
 
+  GoogleSignin.configure({
+    webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
+    iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com'
+  });
+
   useEffect(() => {
     // Disable swipe-back gesture on iOS
     navigation.setOptions({
@@ -53,12 +58,6 @@ const Login = () => {
       return true; // Prevent back navigation
     });
     return () => backHandler.remove();
-  }, []);
-  
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
-    });
   }, []);
 
   useEffect(() => {
@@ -344,6 +343,11 @@ const Login = () => {
     if (!validateFields()) return;
     try {
       setLoading(true);
+
+      if (auth.currentUser) {
+        await auth.signOut();
+      }
+
       await AsyncStorage.removeItem("user");
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -362,35 +366,59 @@ const Login = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    try {
-      setLoading(true);
-      
-      // Check if Google Play services are available
-      await GoogleSignin.hasPlayServices();
+    try {      
+  
+      if (Platform.OS === 'android') {
+        await GoogleSignin.hasPlayServices();
+      }
+
+      try {
+        const currentUser = await GoogleSignin.getCurrentUser();
+        if (currentUser) {
+          console.log('Google User already signed in, signing out first...');
+          await GoogleSignin.signOut();
+        }
+        else {
+          console.log('Google User not signed in');
+        }
+      } catch (e) {
+        console.log('No ghost session found, proceeding...');
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Sign in and get user info
-      const userInfo = await GoogleSignin.signIn();
-      
-      // Get tokens - the structure is different
-      const tokens = await GoogleSignin.getTokens();
-      const idToken = tokens.idToken;
-      
-      if (!idToken) {
-        Alert.alert('Error', 'Failed to get Google ID token');
-        return;
+      const response = await GoogleSignin.signIn();
+      console.log('Full Google response:', JSON.stringify(response, null, 2));
+
+      if (response.type === 'success') {
+        setLoading(true);
+
+        const idToken = response.data.idToken;
+        console.log('ID Token found:', idToken ? 'Yes' : 'No');
+     
+        if (!idToken) {
+          Alert.alert('Error', 'Failed to get Google ID token');
+          return;
+        }
+
+        const credential = GoogleAuthProvider.credential(idToken);
+        const userCredential = await signInWithCredential(auth, credential);
+        await createOrUpdateUser(userCredential.user);
       }
-      
-      // Create Firebase credential
-      const credential = GoogleAuthProvider.credential(idToken);
-      const userCredential = await signInWithCredential(auth, credential);
-      await createOrUpdateUser(userCredential.user);
+      else {
+        console.log('Sign in was not completed. Response type:', response.type);
+      }   
     } catch (error: any) {
       console.error('Google sign in error:', error);
       
       // Handle specific error codes
-      if (error.code === '7') {
-        // User cancelled
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
         console.log('User cancelled Google Sign-In');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        console.log('Sign in already in progress');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services not available');
       } else {
         Alert.alert('Google Sign In Failed', error.message);
       }

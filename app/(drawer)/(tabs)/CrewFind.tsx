@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform, BackHandler } from "react-native";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from 'react-native-vector-icons/FontAwesome5';
@@ -70,8 +71,13 @@ const CrewFind = () => {
       return false;
     }
 
-    const distance = haversine(userLoc, crewLoc); // distance in meters
-    return distance <= 150000 || (crewLoc.latitude === 0 && crewLoc.longitude === 0);
+    if (crewLoc.latitude === 0 && crewLoc.longitude === 0) {
+      return false;
+    }
+
+    const distance = haversine(userLoc, crewLoc); 
+   // return distance <= 150000 || (crewLoc.latitude === 0 && crewLoc.longitude === 0);
+    return distance <= 150000
   };
 
   // Function to get location coordinates from base name
@@ -198,6 +204,20 @@ const CrewFind = () => {
     const storedUser = await UtilFunctions.getUser();
     console.log("Stored User: ", storedUser);
     if (storedUser) {
+      const isProfileIncomplete = !storedUser.position || !storedUser.companyName || 
+                                  !storedUser.hobbies || storedUser.hobbies.length === 0;
+      if (isProfileIncomplete) {
+
+        await AsyncStorage.removeItem("user");
+        await auth.signOut();
+        
+        if (Platform.OS === 'ios') {
+          router.replace("/screens/auth/Login");
+        } else {
+          router.push("/screens/auth/Login");
+        }
+      }
+
       setUser(storedUser);
     }
   };
@@ -258,6 +278,14 @@ const CrewFind = () => {
           const crewData = crewDoc.data();
           console.log("Fetched Crew: ", crewData);
 
+          const isProfileIncomplete = !crewData.position || !crewData.companyName || 
+                                    !crewData.hobbies || crewData.hobbies.length === 0;
+          
+          if (isProfileIncomplete) {
+            console.log(`Crew member ${crewData.name} has an incomplete profile, excluding`);
+            return null;
+          }
+
           // Get crew member's location from their base
           const crewLocation = crewData.userCoordinates
           ? {
@@ -269,10 +297,15 @@ const CrewFind = () => {
           console.log("Crew's location:", crewLocation);
           
           // Filter out crew members not within 150km
-          if (userLoc && crewLocation && !isWithin150km(userLoc, crewLocation)) {
+         /* if (userLoc && crewLocation && !isWithin150km(userLoc, crewLocation)) {
             console.log(`Crew member ${crewData.name} is not within 150km, excluding`);
             return null;
-          }
+          } */ 
+
+          if (!crewLocation || !userLoc || !isWithin150km(userLoc, crewLocation)) {
+            console.log(`Crew member ${crewData.name} has no valid location or is >150km away, excluding`);
+            return null;
+          } 
 
           // Helper function to check if URL is external (Google, etc.) or Firebase Storage
          

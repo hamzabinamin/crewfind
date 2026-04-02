@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View,
   ScrollView,
-  Linking
+  Linking,
+  KeyboardAvoidingView
 } from "react-native";
 import styled from "styled-components/native";
 import Icon from "react-native-vector-icons/FontAwesome";
@@ -288,7 +289,11 @@ const Register3 = () => {
   };
 
   return (
-    <DismissKeyboardView style={{ flex: 1 }}>
+     <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+    >
       {loading && <LoadingIndicator />}
 
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -403,7 +408,7 @@ const Register3 = () => {
           </ModalContent>
         </Modal>
       </View>
-    </DismissKeyboardView>
+    </KeyboardAvoidingView>
   );
 };
 

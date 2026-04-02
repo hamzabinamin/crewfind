@@ -10,9 +10,15 @@ import eventEmitter from "../utilities/eventEmitter";
 import UtilFunctions from "@/app/utilities/UtilFunctions";
 import FastImage from "react-native-fast-image"
 import usePushNotifications from "../../hooks/usePushNotifications";
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth } from '../../FirebaseConfig';
 import { getAuth } from 'firebase/auth';
 import { CommonActions } from '@react-navigation/native';
+
+GoogleSignin.configure({
+  webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
+  iosClientId: '229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt.apps.googleusercontent.com'
+});
 
 export default function DrawerLayout() {
   const [hasStoredUser, setHasStoredUser] = useState(false);
@@ -208,7 +214,20 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             props.navigation.closeDrawer();
             await AsyncStorage.removeItem("user");
             await auth.signOut();
-            router.push("/screens/auth/Login");
+            console.log("Seeing if it was Google login")
+            try {
+              await GoogleSignin.signOut();
+              console.log("Google session cleared successfully.");
+            } catch (error) {
+              console.log("Google sign out skipped (user likely logged in via Email/Apple)");
+            }
+
+            if (Platform.OS === 'ios') {
+              router.replace("/screens/auth/Login");
+            }
+            else {
+              router.push("/screens/auth/Login");
+            }
           },
         },
       ]

@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewFind",
     "slug": "crewfind",
-    "version": "1.0.17",
+    "version": "1.0.19",
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon-new.png",
@@ -67,7 +67,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+          "locationWhenInUsePermission": "$(PRODUCT_NAME) uses your location to show nearby crew members and crew specials within 150 km of your position, such as recommending the closest crew members to you."
         }
       ],
       "expo-video",
@@ -77,6 +77,12 @@
           "ios": {
             "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.229155847690-a4agpm1ivphmmfbcv7er383rp34rhigt"
         }
       ]
     ],
