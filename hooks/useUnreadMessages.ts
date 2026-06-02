@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { onSnapshot, collection, query, where } from "firebase/firestore";
 import { db } from "../FirebaseConfig";
-import eventEmitter from "../app/utilities/eventEmitter"; 
+import eventEmitter from "../utilities/eventEmitter"; 
 
 export const useUnreadMessages = (userId?: string) => {
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);

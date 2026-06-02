@@ -2,14 +2,14 @@ import React, { useState } from "react";
 import { Alert } from "react-native";
 import styled from "styled-components/native";
 import { useRouter } from "expo-router";
-import { User } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../../models/User";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { GeoPoint } from "firebase/firestore";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { sendEmailVerification } from "firebase/auth";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { auth } from "../../../FirebaseConfig";
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 
 const VerifyEmail = () => {
   const router = useRouter();
@@ -87,7 +87,7 @@ const VerifyEmail = () => {
             };
 
             console.log("✅ Saving verified user locally:", registeredUser.id);
-            UtilFunctions.saveUser(registeredUser);
+            await UtilFunctions.saveUser(registeredUser);
             router.dismissAll();
             router.replace("../../(drawer)/(tabs)/CrewFind");
         } 

@@ -3,11 +3,11 @@ import { FlatList, Alert, TouchableOpacity, View } from 'react-native';
 import { useRouter } from "expo-router";
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import { User } from "../models/User";
-import eventEmitter from "../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../models/User";
+import eventEmitter from "../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { Image } from "expo-image";
-import LoadingIndicator from "../utilities/LoadingIndicator";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, collection, query, where } from "firebase/firestore";
 import { db } from "../../FirebaseConfig";
 

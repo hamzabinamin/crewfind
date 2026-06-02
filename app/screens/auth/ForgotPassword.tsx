@@ -7,7 +7,7 @@ import { fetchSignInMethodsForEmail, sendPasswordResetEmail } from "firebase/aut
 import { auth } from "../../../FirebaseConfig";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 
 const screenWidth = Dimensions.get("window").width;
 

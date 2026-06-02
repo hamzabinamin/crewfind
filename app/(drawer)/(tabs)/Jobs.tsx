@@ -18,12 +18,12 @@ import {
 import { useRouter } from "expo-router";
 import { FontAwesome5 } from "@expo/vector-icons";
 import { Ionicons } from "@expo/vector-icons";
-import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { User } from "../../models/User";
-import { JobPost } from "../../models/JobPost";
-import { Airline } from "../../models/Airline";
-import eventEmitter from "../../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
+import { User } from "../../../models/User";
+import { JobPost } from "../../../models/JobPost";
+import { Airline } from "../../../models/Airline";
+import eventEmitter from "../../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { Image } from "expo-image";
 import { getAuth } from "firebase/auth";
 import { db } from "../../../FirebaseConfig";
@@ -127,8 +127,14 @@ const Jobs = () => {
               const data = airlineSnap.data();
               console.log("Airline data: ", data);
 
-              const logoUrl = data.logoImage ? await UtilFunctions.fetchLogoUrl(data.logoImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
-              const backgroundUrl = data.backgroundImage ? await UtilFunctions.fetchLogoUrl(data.backgroundImage) : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+              const [logoUrl, backgroundUrl] = await Promise.all([
+                data.logoImage 
+                  ? UtilFunctions.fetchLogoUrl(data.logoImage) 
+                  : Promise.resolve("https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png"),
+                data.backgroundImage 
+                  ? UtilFunctions.fetchLogoUrl(data.backgroundImage) 
+                  : Promise.resolve("https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png")
+              ]);
 
               airlineData = {
                 id: airlineSnap.id,
@@ -458,6 +464,10 @@ const Jobs = () => {
           refreshing={refreshing}
           showsVerticalScrollIndicator={false}
           onRefresh={fetchJobs}
+          initialNumToRender={3}      
+          maxToRenderPerBatch={4}     
+          windowSize={5}               
+          removeClippedSubviews={true}
         />
       )}
 

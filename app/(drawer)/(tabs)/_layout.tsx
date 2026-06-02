@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { TouchableOpacity, View, Text, Image } from "react-native";
-import { DrawerToggleButton } from "@react-navigation/drawer";
-import eventEmitter from "../../utilities/eventEmitter";
+import { DrawerActions } from "@react-navigation/native";
+import eventEmitter from "../../../utilities/eventEmitter";
 import { useUnreadMessages } from "../../../hooks/useUnreadMessages";
-import { User } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
-import { Tabs } from "expo-router";
+import { User } from "../../../models/User";
+import UtilFunctions from "@/utilities/UtilFunctions";
+import { Tabs, useNavigation } from "expo-router";
 import Icon from "react-native-vector-icons/FontAwesome";
 
 export default function _layout() {
   const [user, setUser] = useState<User | null>(null);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -37,13 +38,20 @@ export default function _layout() {
   const handleFilterPress = (routeName: string) => {
     const eventName = `openFilter:${routeName}`;
     console.log(`Emitting event: ${eventName}`);
-    eventEmitter.emit(eventName); 
+    eventEmitter.emit(eventName);
   };
 
   return (
     <Tabs
       screenOptions={({ route }) => ({
-        headerLeft: () => <DrawerToggleButton tintColor="#1c1c88" />,
+        headerLeft: () => (
+          <TouchableOpacity
+            style={{ marginLeft: 15 }}
+            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+          >
+            <Icon name="bars" size={22} color="#1c1c88" />
+          </TouchableOpacity>
+        ),
         headerRight: () =>
           route.name === "CrewFind" /*|| route.name === "Jobs" || route.name === "CrewSpecials" */ ? (
             <TouchableOpacity style={{ marginRight: 15 }} onPress={() => {

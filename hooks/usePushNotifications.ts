@@ -2,8 +2,8 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import registerForPushNotificationsAsync from '../app/notifications/registerForPushNotifications';
-import { saveExpoPushToken } from '../app/notifications/saveExpoPushToken';
+import registerForPushNotificationsAsync from '../notifications/registerForPushNotifications';
+import { saveExpoPushToken } from '../notifications/saveExpoPushToken';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 // Global variable to track currently open chat ID
@@ -69,10 +69,10 @@ export default function usePushNotifications() {
     return () => {
       unsubscribeAuth();
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);

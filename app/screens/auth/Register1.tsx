@@ -18,11 +18,11 @@ import React, { useEffect, useState } from "react";
 import styled from "styled-components/native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
-import { User, createUser } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User, createUser } from "../../../models/User";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView, KeyboardAwareFlatList } from 'react-native-keyboard-aware-scroll-view';
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../../FirebaseConfig";
 
@@ -244,10 +244,10 @@ const Register = () => {
     }
 
     // Age validation - only if provided
-    if (age && (isNaN(Number(age)) || Number(age) <= 0)) {
+    if (age && age !== "0" && (isNaN(Number(age)) || Number(age) <= 0)) {
       Alert.alert("Validation Error", "Age must be a positive number.");
       return;
-    } 
+    }
 
     // Sex validation - only if provided
     if (sex) {
@@ -280,13 +280,13 @@ const Register = () => {
       surName: surname,
       email,
       password,
-      base: base || undefined,
-      nationality: nationality || undefined,
+      base: base || "",
+      nationality: nationality || "",
       position,
       companyName,
       age: age ? Number(age) : 0,
-      sex: sex || undefined,
-      relationshipStatus: relationshipStatus || undefined,
+      sex: sex || "",
+      relationshipStatus: relationshipStatus || "",
       hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
     };
 
@@ -294,13 +294,13 @@ const Register = () => {
       name,
       surName: surname,
       email,
-      base: base || undefined,
-      nationality: nationality || undefined,
+      base: base || "",
+      nationality: nationality || "",
       position,
       companyName,
       age: age ? Number(age) : 0,
-      sex: sex || undefined,
-      relationshipStatus: relationshipStatus || undefined,
+      sex: sex || "",
+      relationshipStatus: relationshipStatus || "",
       hobbies: sanitizedHobbies.split(",").map((hobby) => hobby.trim())
     };
 
@@ -313,15 +313,15 @@ const Register = () => {
 
         const storedUser = await UtilFunctions.getUser();
         if (storedUser) {
-          storedUser.name = name
-          storedUser.surName = surname,
-          storedUser.base = base || "",
-          storedUser.nationality = nationality || "",
-          storedUser.position = position,
-          storedUser.companyName = companyName,
-          storedUser.age = age ? Number(age) : 0,
-          storedUser.sex = sex || "",
-          storedUser.relationshipStatus = relationshipStatus || "",
+          storedUser.name = name;
+          storedUser.surName = surname;
+          storedUser.base = base || "";
+          storedUser.nationality = nationality || "";
+          storedUser.position = position;
+          storedUser.companyName = companyName;
+          storedUser.age = age ? Number(age) : 0;
+          storedUser.sex = sex || "";
+          storedUser.relationshipStatus = relationshipStatus || "";
           storedUser.hobbies = hobbies ? hobbies.split(",").map((hobby) => hobby.trim()) : [];
           UtilFunctions.saveUser(storedUser);
         }

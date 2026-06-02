@@ -1,20 +1,20 @@
 import React, { useEffect, useState, useRef } from "react";
 import { FlatList, Dimensions, Text, View, Alert, Linking, TouchableOpacity, Modal, TouchableWithoutFeedback, Platform, BackHandler } from "react-native";
 import { useRouter } from "expo-router";
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from "styled-components/native";
 import { Ionicons } from "@expo/vector-icons";
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import Icon2 from 'react-native-vector-icons/Ionicons';
 import * as Location from 'expo-location';
-import { User } from "../../models/User";
-import eventEmitter from "../../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../../models/User";
+import eventEmitter from "../../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { Image } from "expo-image";
-import { baseCoordinates } from "@/app/utilities/baseCoordinates";
+import { baseCoordinates } from "../../../utilities/baseCoordinates";
 import haversine from "haversine-distance";
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 import usePushNotifications from "../../../hooks/usePushNotifications";
 import { collection, doc, getDocs, updateDoc, arrayUnion, arrayRemove, getDoc, query, where } from "firebase/firestore";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -97,14 +97,16 @@ const CrewFind = () => {
     }, [])
   );
 
-  useEffect(() => {
-    console.log("Inside Home's useEffect");
-    fetchUserFromStorage();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log("CrewFind focused: Fetching user from storage");
+      fetchUserFromStorage();
+    }, [])
+  );
   
   useEffect(() => {
     fetchUserLocationAndCrew();
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -760,7 +762,7 @@ const CrewFind = () => {
                   </DetailTextContainer>
                 </DetailRow>
 
-                {item.nationality && (
+                {item.nationality ? (
                   <DetailRow>
                     <DetailIcon name="flag" size={18} color="#1c1c88" />
                     <DetailTextContainer>
@@ -768,9 +770,9 @@ const CrewFind = () => {
                       <DetailValue>{item.nationality}</DetailValue>
                     </DetailTextContainer>
                   </DetailRow>
-                )}
+                ): null}
 
-                {item.relationshipStatus && (
+                {item.relationshipStatus ? (
                   <DetailRow>
                     <DetailIcon name="heart" size={18} color="#1c1c88" />
                     <DetailTextContainer>
@@ -778,9 +780,9 @@ const CrewFind = () => {
                       <DetailValue>{item.relationshipStatus}</DetailValue>
                     </DetailTextContainer>
                   </DetailRow>
-                )}
+                ): null}
 
-                {item.sex && (
+                {item.sex ? (
                   <DetailRow>
                     <DetailIcon name="user" size={18} color="#1c1c88" />
                     <DetailTextContainer>
@@ -788,9 +790,9 @@ const CrewFind = () => {
                       <DetailValue>{item.sex}</DetailValue>
                     </DetailTextContainer>
                   </DetailRow>
-                )}
+                ): null}
 
-                {item.age && (
+                {item.age ? (
                   <DetailRow>
                     <DetailIcon name="calendar" size={18} color="#1c1c88" />
                     <DetailTextContainer>
@@ -798,7 +800,7 @@ const CrewFind = () => {
                       <DetailValue>{item.age}</DetailValue>
                     </DetailTextContainer>
                   </DetailRow>
-                )}
+                ): null}
               </DetailSection>
 
               {/* Hobbies Section */}

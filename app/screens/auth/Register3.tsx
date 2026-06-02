@@ -11,21 +11,22 @@ import {
   Linking,
   KeyboardAvoidingView
 } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import styled from "styled-components/native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
-import { User } from "../../models/User";
-import eventEmitter from "../../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../../models/User";
+import eventEmitter from "../../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from "expo-image";
 import DismissKeyboardView from "../../../components/DismissKeyboardView";
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth'
 import { getFirestore, doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
-import { ref, getStorage, deleteObject, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, getStorage, deleteObject, uploadBytes, getDownloadURL, uploadString } from "firebase/storage";
 import { auth, db, storage } from "../../../FirebaseConfig";
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 
 const Register3 = () => {
   const router = useRouter();
@@ -114,13 +115,58 @@ const Register3 = () => {
     setShowModal(false);
   };
 
-  const uploadNewImage = async (uri: string, type: "profileImage" | "backgroundImage") => {
+ /* const uploadNewImage = async (uri: string, type: "profileImage" | "backgroundImage") => {
     const timestamp = Date.now();
     const blob = await (await fetch(uri)).blob();
     const fileName = `${timestamp}-${user.id}-${type}.jpg`;
     const imageRef = ref(storage, `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`);
     await uploadBytes(imageRef, blob);
     return await getDownloadURL(imageRef);
+  }; */
+
+  const uploadNewImage = async (uri: string, type: "profileImage" | "backgroundImage") => {
+    const timestamp = Date.now();
+    const fileName = `${timestamp}-${user.id}-${type}.jpg`;
+
+    if (Platform.OS === "android") {
+      const cacheUri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.copyAsync({ from: uri, to: cacheUri });
+
+      const storageBucket = "crewfind-cfac2.firebasestorage.app";
+      const encodedPath = encodeURIComponent(
+        `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`
+      );
+      const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodedPath}`;
+
+      const token = await auth.currentUser?.getIdToken();
+
+      const response = await FileSystem.uploadAsync(uploadUrl, cacheUri, {
+        httpMethod: "POST",
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Authorization": `Firebase ${token}`,
+        },
+      });
+
+      await FileSystem.deleteAsync(cacheUri, { idempotent: true });
+
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(`Firebase REST upload failed: ${response.body}`);
+      }
+
+      const result = JSON.parse(response.body);
+      return `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodedPath}?alt=media&token=${result.downloadTokens}`;
+
+    } else {
+      const imageRef = ref(
+        storage,
+        `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`
+      );
+      const blob = await (await fetch(uri)).blob();
+      await uploadBytes(imageRef, blob);
+      return await getDownloadURL(imageRef);
+    }
   };
 
   const handleCompleteRegistration = async () => {
@@ -231,49 +277,76 @@ const Register3 = () => {
           throw new Error("Failed to save user data in Firestore.");
         }
 
-      /*  const userData = userDoc.data();
+        const userData = userDoc.data();
+        const isUserVerified = auth.currentUser && auth.currentUser.emailVerified;
 
-        const registeredUser: User = {
-          id: userDoc.id,
-          name: userData.name || "",
-          surName: userData.surName || "",
-          email: userData.email || "",
-          password: "",
-          base: userData.base || "",
-          nationality: userData.nationality || "",
-          position: userData.position || "",
-          companyName: userData.companyName || "",
-          age: userData.age || 0,
-          sex: userData.sex || "",
-          relationshipStatus: userData.relationshipStatus || "",
-          hobbies: userData.hobbies || [],
-          profileImage: user.profileImage || "",
-          backgroundImage: user.backgroundImage || "",
-          licenses: userData.licenses || [],
-          licenseType: userData.licenseType || "",
-          experiences: userData.experiences || [],
-          flyingHoursPIC: userData.flyingHoursPIC || 0,
-          flyingHoursTotal: userData.flyingHoursTotal || 0,
-          yearsOfExperience: userData.yearsOfExperience || 0,
-          friends: userData.friends,
-          blocked: userData.blocked,
-          lastSeen: userData.lastSeen ? userData.lastSeen.toDate?.() ?? new Date(userData.lastSeen) : null,
-          createdAt: userData.createdAt && userData.createdAt.toDate ? userData.createdAt.toDate() : new Date(),
-          updatedAt: userData.updatedAt && userData.updatedAt.toDate ? userData.updatedAt.toDate() : new Date()
-        };
-
-        console.log("Registered User id: ", registeredUser.id);
-        UtilFunctions.saveUser(registeredUser); */
-
-        if (auth.currentUser) {
+        if (auth.currentUser && !auth.currentUser.emailVerified) {
           await sendEmailVerification(auth.currentUser);
           console.log("📧 Verification email sent to:", auth.currentUser.email);
           await UtilFunctions.deleteUser();
         }
 
-       // router.dismissAll();
-       // router.replace("../../(drawer)/(tabs)/CrewFind");
-       router.replace("./VerifyEmail");
+        if (isUserVerified) {
+          let finalProfileImage = "https://www.pngfind.com/pngs/m/610-6104451_image-placeholder-png-user-profile-placeholder-image-png.png";
+          if (userData.profileImage) {
+            if (UtilFunctions.isExternalUrl(userData.profileImage)) {
+              finalProfileImage = userData.profileImage;
+            } else {
+              try { finalProfileImage = await UtilFunctions.fetchLogoUrl(userData.profileImage); } 
+              catch (error) { console.error(error); }
+            }
+          }
+
+          let finalBackgroundImage = "https://dummyimage.com/300/fff/fff";
+          if (userData.backgroundImage) {
+            if (UtilFunctions.isExternalUrl(userData.backgroundImage)) {
+              finalBackgroundImage = userData.backgroundImage;
+            } else {
+              try { finalBackgroundImage = await UtilFunctions.fetchLogoUrl(userData.backgroundImage); } 
+              catch (error) { console.error(error); }
+            }
+          }
+
+          const perfectUser: User = {
+            id: userDoc.id, // Guarantee the ID is present!
+            name: userData.name || "",
+            surName: userData.surName || "",
+            email: userData.email || "",
+            password: "",
+            isVerified: userData.isVerified || "false",
+            base: userData.base || "",
+            nationality: userData.nationality || "",
+            position: userData.position || "",
+            companyName: userData.companyName || "",
+            age: userData.age || 0,
+            sex: userData.sex || "",
+            relationshipStatus: userData.relationshipStatus || "",
+            hobbies: userData.hobbies || [],
+            profileImage: finalProfileImage,
+            backgroundImage: finalBackgroundImage,
+            licenses: userData.licenses || [],
+            licenseType: userData.licenseType || "",
+            experiences: userData.experiences || [],
+            flyingHoursPIC: userData.flyingHoursPIC || 0,
+            flyingHoursTotal: userData.flyingHoursTotal || 0,
+            yearsOfExperience: userData.yearsOfExperience || 0,
+            userCoordinates: userData.userCoordinates || null, // Don't enforce GeoPoint(0,0) here unless imported
+            friends: userData.friends || [],
+            blocked: userData.blocked || [],
+            lastSeen: userData.lastSeen?.toDate?.() ?? new Date(),
+            createdAt: userData.createdAt?.toDate?.() ?? new Date(),
+            updatedAt: userData.updatedAt?.toDate?.() ?? new Date()
+          };
+
+          console.log("Perfect User: ", perfectUser);
+
+          await UtilFunctions.saveUser(perfectUser);
+          router.dismissAll();
+          router.replace("../../(drawer)/(tabs)/CrewFind");
+        }
+        else {
+          router.replace("./VerifyEmail");
+        }
       } catch (error: any) {
         console.error("Error creating/updating user:", error.message);
         Alert.alert("Error", error.message || "Failed to create/update user");

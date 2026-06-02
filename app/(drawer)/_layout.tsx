@@ -1,19 +1,19 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, Image, StyleSheet, Alert, Platform } from "react-native";
-import { router } from "expo-router";
+import { View, Text, Image, StyleSheet, Alert, Platform, TouchableOpacity } from "react-native";
+import { router, usePathname } from "expo-router";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Drawer } from 'expo-router/drawer';
-import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList, DrawerItem } from "@react-navigation/drawer";
-import type { DrawerContentComponentProps } from "@react-navigation/drawer";
-import { User } from "../models/User";
-import eventEmitter from "../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { DrawerToggleButton, DrawerContentScrollView, DrawerItemList } from "@react-navigation/drawer";
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import { User } from "../../models/User";
+import eventEmitter from "../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { Image as EImage } from "expo-image";
 import usePushNotifications from "../../hooks/usePushNotifications";
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth } from '../../FirebaseConfig';
 import { getAuth } from 'firebase/auth';
-import { CommonActions } from '@react-navigation/native';
+import { CommonActions, ThemeProvider, DefaultTheme } from '@react-navigation/native';
 
 GoogleSignin.configure({
   webClientId: '229155847690-ctgfkjhnpp8e2cj0mf9vatl7a56bdbpp.apps.googleusercontent.com',
@@ -23,6 +23,7 @@ GoogleSignin.configure({
 export default function DrawerLayout() {
   const [hasStoredUser, setHasStoredUser] = useState(false);
   const isMountedRef = useRef(false);
+  const pathname = usePathname();
 
   usePushNotifications();
 
@@ -33,28 +34,7 @@ export default function DrawerLayout() {
     };
 
     fetchUserFromStorage();
-  }, []);
-
- /* useEffect(() => {
-    isMountedRef.current = true;
-
-    const unsubscribe = getAuth().onAuthStateChanged(async (user) => {
-      if (!user && isMountedRef.current) {
-        console.log("User signed out, clearing storage and redirecting.");
-       /* try {
-          await AsyncStorage.removeItem("user");
-          router.replace("/screens/auth/Login");
-        } catch (error) {
-          console.error("Error clearing user:", error);
-        } */
-     // } 
-   /* });
-
-    return () => {
-      isMountedRef.current = false;
-      unsubscribe();
-    };
-  }, []); */
+  }, [pathname]);
 
   return (
     <Drawer
@@ -65,7 +45,7 @@ export default function DrawerLayout() {
         drawerActiveTintColor: "#1c1c88", 
         headerLeft: hasStoredUser
           ? () => <DrawerToggleButton tintColor="#1c1c88" />
-          : () => null,   // 👈 MUST RETURN null
+          : () => null,
         }}
         drawerContent={(props) =>
           hasStoredUser ? <CustomDrawerContent {...props} /> : <GuestDrawerContent {...props} />
@@ -97,12 +77,9 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Airlines</Text>
             </View>
           ),
-         // headerLeft: () => (
-         //   <DrawerToggleButton tintColor="#1c1c88" />
-         // ) 
         }}
       />
-       <Drawer.Screen
+      <Drawer.Screen
         name="Blocked"
         options={{
           drawerLabel: "Blocked",
@@ -120,9 +97,6 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Blocked</Text>
             </View>
           ),
-         // headerLeft: () => (
-         //   <DrawerToggleButton tintColor="#1c1c88" />
-         // ) 
         }}
       />
       <Drawer.Screen
@@ -143,9 +117,6 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Friends</Text>
             </View>
           ),
-        // headerLeft: () => (
-        //   <DrawerToggleButton tintColor="#1c1c88" />
-        // ) 
         }}
       />
       <Drawer.Screen
@@ -166,16 +137,13 @@ export default function DrawerLayout() {
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#000' }}>Settings</Text>
             </View>
           ),
-        //  headerLeft: () => (
-        //    <DrawerToggleButton tintColor="#1c1c88" />
-        //  ) 
         }}
       />
     </Drawer>
   );
 }
 
-function CustomDrawerContent(props: DrawerContentComponentProps) {
+function CustomDrawerContent(props: any) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
@@ -254,20 +222,25 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
       {/* Separator */}
       <View style={styles.separator} />
 
-      {/* Drawer Items */}
-      <DrawerItemList {...props} />
+      {/* Drawer Items - needs theme context */}
+      <ThemeProvider value={DefaultTheme}>
+        <DrawerItemList {...props} />
+      </ThemeProvider>
 
       {/* Logout Item */}
-      <DrawerItem
-        label="Logout"
-        labelStyle={{ color: "red" }}
+      <TouchableOpacity
+        style={{ paddingVertical: 14, paddingHorizontal: 18 }}
         onPress={handleLogout}
-      />
+      >
+        <Text style={{ fontSize: 15, fontWeight: '500', color: 'red' }}>
+          Logout
+        </Text>
+      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }
 
-function GuestDrawerContent(props: DrawerContentComponentProps) {
+function GuestDrawerContent(props: any) {
   return (
     <DrawerContentScrollView {...props}>
       {/* Guest Header */}
@@ -286,8 +259,8 @@ function GuestDrawerContent(props: DrawerContentComponentProps) {
       <View style={styles.separator} />
 
       {/* Login option */}
-      <DrawerItem
-        label="Login / Create Account"
+      <TouchableOpacity
+        style={{ paddingVertical: 14, paddingHorizontal: 18 }}
         onPress={() => {
           if (Platform.OS === 'ios') {
             router.replace("/screens/auth/Login");
@@ -295,7 +268,11 @@ function GuestDrawerContent(props: DrawerContentComponentProps) {
             router.push("/screens/auth/Login");
           }
         }}
-      />
+      >
+        <Text style={{ fontSize: 15, fontWeight: '500', color: '#1c1c88' }}>
+          Login / Create Account
+        </Text>
+      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, Linking, TouchableOpacity, Alert, Text } from 'react-native';
 import styled from 'styled-components/native';
 import { useRouter } from "expo-router";
-import LoadingIndicator from "../utilities/LoadingIndicator";
+import LoadingIndicator from "../../utilities/LoadingIndicator";
 import { doc, updateDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { signOut, deleteUser } from 'firebase/auth';
 import { db, auth } from '../../FirebaseConfig'; // adjust to your Firebase init

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { View, Text, Button, TouchableOpacity, AppState, AppStateStatus, StyleSheet, ActivityIndicator } from "react-native";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { Stack, router } from "expo-router";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { auth } from "../FirebaseConfig";
 
 export default function _layout() {
@@ -92,6 +92,7 @@ export default function _layout() {
         options={{
           headerTitle: "Create Account",
           headerTransparent: false,
+          headerBackVisible: false,
           headerTitleStyle: {
             color: "#1c1c88", // ← This changes the title text color
             fontWeight: "bold",
@@ -99,9 +100,15 @@ export default function _layout() {
           },
          // headerStyle: customHeaderStyle.header as any,
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ marginLeft: 10 }}>
-              <Icon name="chevron-left" size={20} color="#1c1c88" />
-            </TouchableOpacity>
+            <View style={{ backgroundColor: "transparent", paddingLeft: 10 }}> 
+              <TouchableOpacity 
+                onPress={() => router.back()} 
+                style={{ backgroundColor: "transparent", padding: 5 }}
+                hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }} // Makes it easier to tap
+              >
+                <Icon name="chevron-left" size={20} color="#1c1c88" />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
@@ -110,6 +117,7 @@ export default function _layout() {
         options={{
           headerTitle: "Create Account",
           headerTransparent: false,
+          headerBackVisible: false,
           headerTitleStyle: {
             color: "#1c1c88", // ← This changes the title text color
             fontWeight: "bold",

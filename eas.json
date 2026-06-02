@@ -6,7 +6,14 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "ios": {
+        "image": "macos-14-xcode-16"
+      },
+      "env": {
+        "EAS_LOCAL_BUILD_SKIP_CLEANUP": "1",
+        "EXPO_NO_DOCTOR": "1"
+      }
     },
     "preview": {
       "distribution": "internal",

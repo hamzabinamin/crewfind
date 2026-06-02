@@ -4,9 +4,9 @@ import { useNavigation } from "expo-router"
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { User } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
+import { User } from "../../../models/User";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import DismissKeyboardView from '../../../components/DismissKeyboardView';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GeoPoint } from "firebase/firestore";
@@ -173,7 +173,7 @@ const Login = () => {
           name: additionalData.firstName || firebaseUser.displayName?.split(' ')[0] || "",
           surName: additionalData.lastName || firebaseUser.displayName?.split(' ').slice(1).join(' ') || "", 
           email: firebaseUser.email || "",
-          isVerified: "false",
+          isVerified: firebaseUser.emailVerified ? "true" : "false",
           base: "", // Will be filled in Register screen
           nationality: "", // Will be filled in Register screen
           position: "", // Will be filled in Register screen

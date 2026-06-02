@@ -21,11 +21,11 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import haversine from 'haversine-distance';
 import { useRouter } from "expo-router";
-import { Special } from "../../models/Special";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { Special } from "../../../models/Special";
+import UtilFunctions from "../../../utilities/UtilFunctions";
 import { Image } from "expo-image";
-import LoadingIndicator from "../../utilities/LoadingIndicator";
-import { User } from "../../models/User";
+import LoadingIndicator from "@/utilities/LoadingIndicator";
+import { User } from "../../../models/User";
 import { db } from "../../../FirebaseConfig";
 import { collection, doc, getDocs, getDoc } from "firebase/firestore";
 
@@ -122,13 +122,14 @@ export default function Specials() {
 
           if (userLoc && !isWithin150km(userLoc, location)) return null;
 
-          const companyImageUrl = specialData.companyImage
-            ? await UtilFunctions.fetchLogoUrl(specialData.companyImage)
-            : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
-
-          const backgroundImageUrl = specialData.backgroundImage
-            ? await UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
-            : "https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png";
+          const [companyImageUrl, backgroundImageUrl] = await Promise.all([
+          specialData.companyImage
+            ? UtilFunctions.fetchLogoUrl(specialData.companyImage)
+            : Promise.resolve("https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png"),
+          specialData.backgroundImage
+            ? UtilFunctions.fetchLogoUrl(specialData.backgroundImage)
+            : Promise.resolve("https://www.pngkey.com/png/detail/233-2332677_image-500580-placeholder-transparent.png")
+          ]);
 
           return {
             id: specialDoc.id,
@@ -582,7 +583,11 @@ export default function Specials() {
           refreshing={refreshing}
           showsVerticalScrollIndicator={false}
           onRefresh={() => fetchUserLocationAndSpecials(user)}
-          ListEmptyComponent={renderEmptyState} // ✅ Empty state handled here
+          ListEmptyComponent={renderEmptyState}
+          initialNumToRender={2}       
+          maxToRenderPerBatch={3}     
+          windowSize={5}               
+          removeClippedSubviews={true}
         />
       )}
 

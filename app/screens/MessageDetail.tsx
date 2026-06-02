@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { View, Text, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GiftedChat, IMessage, Bubble, InputToolbar, Send, Time } from "react-native-gifted-chat";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { sendMessage, getOrCreateChat } from "../services/chatService";
+import { sendMessage, getOrCreateChat } from "../../services/chatService";
 import Icon2 from 'react-native-vector-icons/Ionicons';
-import { User } from "../models/User";
-import { Message } from "../models/Message";
-import eventEmitter from "../utilities/eventEmitter";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../models/User";
+import { Message } from "../../models/Message";
+import eventEmitter from "../../utilities/eventEmitter";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { Image } from "expo-image";
 import { setCurrentOpenChatId } from "../../hooks/usePushNotifications";
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
@@ -20,6 +21,7 @@ export interface ChatMessage extends IMessage {
 
 const MessageDetail = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const {
     chatId: chatIdParam,
     recipientId,
@@ -640,7 +642,7 @@ const MessageDetail = () => {
         renderUsernameOnMessage={false}
         renderAvatarOnTop
         infiniteScroll
-        bottomOffset={0}
+        bottomOffset={Platform.OS === 'android' ? insets.bottom : 0}
         messagesContainerStyle={{
           paddingBottom: 10,
         }}

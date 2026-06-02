@@ -15,10 +15,10 @@ import React, { useState, useEffect } from "react";
 import styled from 'styled-components/native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
-import { User } from "../../models/User";
-import UtilFunctions from "@/app/utilities/UtilFunctions";
+import { User } from "../../../models/User";
+import UtilFunctions from "@/utilities/UtilFunctions";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LoadingIndicator from "../../utilities/LoadingIndicator";
+import LoadingIndicator from "../../../utilities/LoadingIndicator";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from '../../../FirebaseConfig';
@@ -262,12 +262,12 @@ const Register2 = () => {
             <GroupLabel>Flying Hours PIC</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="tachometer" size={20} color="#999999" />
-              <Input placeholder="e.g., 500" keyboardType="number-pad" value={flyingHoursPIC} onChangeText={setFlyingHoursPIC} />
+              <Input placeholder="e.g., 500" placeholderTextColor="#888" keyboardType="number-pad" value={flyingHoursPIC} onChangeText={setFlyingHoursPIC} />
             </InputContainer>
             <GroupLabel>Flying Hours Total</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="tachometer" size={20} color="#999999" />
-              <Input placeholder="e.g., 1200" keyboardType="number-pad" value={flyingHoursTotal} onChangeText={setFlyingHoursTotal} />
+              <Input placeholder="e.g., 1200" placeholderTextColor="#888" keyboardType="number-pad" value={flyingHoursTotal} onChangeText={setFlyingHoursTotal} />
             </InputContainer>
           </>
         ) : (
@@ -275,7 +275,7 @@ const Register2 = () => {
             <GroupLabel>Years of Experience</GroupLabel>
             <InputContainer>
               <StyledIconEmail name="history" size={20} color="#999999" />
-              <Input placeholder="e.g., 5" keyboardType="number-pad" value={yearsOfExperience} onChangeText={setYearsOfExperience} />
+              <Input placeholder="e.g., 5" placeholderTextColor="#888" keyboardType="number-pad" value={yearsOfExperience} onChangeText={setYearsOfExperience} />
             </InputContainer>
           </>
         )}
