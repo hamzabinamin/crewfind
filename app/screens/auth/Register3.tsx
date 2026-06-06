@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Dimensions,
   Alert,
@@ -35,6 +35,7 @@ const Register3 = () => {
   const userString = typeof params.user === "string" ? params.user : null;
   const [user, setUser] = useState<User>(userString ? JSON.parse(userString) : {});
   const [loading, setLoading] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [profileImage, setProfileImage] = useState<{ uri: string } | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<{ uri: string } | null>(null);
@@ -125,49 +126,37 @@ const Register3 = () => {
   }; */
 
   const uploadNewImage = async (uri: string, type: "profileImage" | "backgroundImage") => {
-    const timestamp = Date.now();
-    const fileName = `${timestamp}-${user.id}-${type}.jpg`;
+  const timestamp = Date.now();
+  const fileName = `${timestamp}-${user.id}-${type}.jpg`;
+  const folder = type === "profileImage" ? "profileImages" : "backgroundImages";
+  const storageBucket = "crewfind-cfac2.firebasestorage.app";
+  const encodedPath = encodeURIComponent(`Users/${folder}/${fileName}`);
+  const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodedPath}`;
 
-    if (Platform.OS === "android") {
-      const cacheUri = `${FileSystem.cacheDirectory}${fileName}`;
-      await FileSystem.copyAsync({ from: uri, to: cacheUri });
+  // Copy to a local cache path so uploadAsync has a stable file:// source on both platforms
+  const cacheUri = `${FileSystem.cacheDirectory}${fileName}`;
+  await FileSystem.copyAsync({ from: uri, to: cacheUri });
 
-      const storageBucket = "crewfind-cfac2.firebasestorage.app";
-      const encodedPath = encodeURIComponent(
-        `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`
-      );
-      const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o?uploadType=media&name=${encodedPath}`;
+  const token = await auth.currentUser?.getIdToken();
 
-      const token = await auth.currentUser?.getIdToken();
+  const response = await FileSystem.uploadAsync(uploadUrl, cacheUri, {
+    httpMethod: "POST",
+    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+    headers: {
+      "Content-Type": "image/jpeg",
+      "Authorization": `Firebase ${token}`,
+    },
+  });
 
-      const response = await FileSystem.uploadAsync(uploadUrl, cacheUri, {
-        httpMethod: "POST",
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: {
-          "Content-Type": "image/jpeg",
-          "Authorization": `Firebase ${token}`,
-        },
-      });
+  await FileSystem.deleteAsync(cacheUri, { idempotent: true });
 
-      await FileSystem.deleteAsync(cacheUri, { idempotent: true });
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`Firebase upload failed: ${response.body}`);
+  }
 
-      if (response.status < 200 || response.status >= 300) {
-        throw new Error(`Firebase REST upload failed: ${response.body}`);
-      }
-
-      const result = JSON.parse(response.body);
-      return `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodedPath}?alt=media&token=${result.downloadTokens}`;
-
-    } else {
-      const imageRef = ref(
-        storage,
-        `Users/${type === "profileImage" ? "profileImages" : "backgroundImages"}/${fileName}`
-      );
-      const blob = await (await fetch(uri)).blob();
-      await uploadBytes(imageRef, blob);
-      return await getDownloadURL(imageRef);
-    }
-  };
+  const result = JSON.parse(response.body);
+  return `https://firebasestorage.googleapis.com/v0/b/${storageBucket}/o/${encodedPath}?alt=media&token=${result.downloadTokens}`;
+};
 
   const handleCompleteRegistration = async () => {
     if (!profileImage || !backgroundImage) {
@@ -178,6 +167,9 @@ const Register3 = () => {
     // Validate terms acceptance only during login/registration
    if (!isFromSettings && !termsAccepted) {
       setTermsError(true);
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: true });
+      }, 100);
       return;
     }
     setTermsError(false);
@@ -389,6 +381,7 @@ const Register3 = () => {
 
         {/* Scrollable content starts AFTER progress */}
         <ScrollView
+          ref={scrollViewRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 140 }}
           showsVerticalScrollIndicator={true}

@@ -2,7 +2,7 @@
   "expo": {
     "name": "CrewFind",
     "slug": "crewfind",
-    "version": "1.0.19",
+    "version": "1.0.21",
     "newArchEnabled": true,
     "orientation": "portrait",
     "icon": "./assets/images/icon-new.png",

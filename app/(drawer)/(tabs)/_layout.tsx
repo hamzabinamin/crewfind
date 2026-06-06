@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { TouchableOpacity, View, Text, Image } from "react-native";
-import { DrawerActions } from "@react-navigation/native";
+import { DrawerActions } from "expo-router/react-navigation";
 import eventEmitter from "../../../utilities/eventEmitter";
 import { useUnreadMessages } from "../../../hooks/useUnreadMessages";
 import { User } from "../../../models/User";
